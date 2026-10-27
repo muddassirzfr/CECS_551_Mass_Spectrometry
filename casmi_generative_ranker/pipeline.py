@@ -13,6 +13,10 @@ from torch.utils.data import DataLoader, Dataset
 from rdkit import Chem, RDLogger
 from rdkit.Chem import Descriptors, rdMolDescriptors
 from tokenizers import Tokenizer, models, trainers, processors
+from molecular_preprocessing import (
+ POLICY, RDKIT_VERSION, apply_preprocessing, build_preprocessing,
+ canonical_candidate, load_preprocessing, require_competition_rdkit,
+)
 RDLogger.DisableLog('rdApp.*')
 
 PAD, BOS, EOS, UNK = 0, 1, 2, 3
@@ -25,11 +29,7 @@ def amp(args):
  return torch.autocast(device_type='cuda',dtype=torch.bfloat16 if args.bf16 else torch.float16,enabled=args.device.startswith('cuda'))
 
 def canonical(smiles):
- try:
-  mol=Chem.MolFromSmiles(smiles)
-  if mol is None:return None
-  return Chem.MolToSmiles(mol), Chem.MolToInchiKey(mol).split('-')[0], mol
- except Exception:return None
+ return canonical_candidate(smiles)
 
 def neutral_mass(precursor,adduct):
  # Single-charge common adducts only; others intentionally get no mass constraint.
@@ -123,8 +123,9 @@ def _rearrange_samples(out,b,n,chunk):
 
 def train_tokenizer(df,path,vocab):
  tk=Tokenizer(models.BPE(unk_token='[UNK]'));tk.pre_tokenizer=None
- tr=trainers.BpeTrainer(vocab_size=vocab,special_tokens=['<pad>','<s>','</s>','[UNK]'],initial_alphabet=list(set(''.join(df.normalized_smiles.astype(str).unique()))))
- tk.train_from_iterator(df.normalized_smiles.astype(str).unique().tolist(),trainer=tr)
+ strings=sorted(df.normalized_smiles.unique())
+ tr=trainers.BpeTrainer(vocab_size=vocab,special_tokens=['<pad>','<s>','</s>','[UNK]'],initial_alphabet=sorted(set(''.join(strings))))
+ tk.train_from_iterator(strings,trainer=tr)
  tk.post_processor=processors.TemplateProcessing(single='<s> $A </s>',special_tokens=[('<s>',BOS),('</s>',EOS)])
  tk.save(str(path));return tk
 
@@ -135,8 +136,9 @@ def token_lengths(tk,smiles):
 
 def split_structures(df,seed,holdout):
  from sklearn.model_selection import train_test_split
- keys=df.inchikey14.astype(str).unique();a,b=train_test_split(keys,test_size=holdout,random_state=seed)
- return df[df.inchikey14.isin(a)].copy(),df[df.inchikey14.isin(b)].copy()
+ if 'competition_identity' not in df:raise ValueError('Normalize molecular identities before splitting')
+ keys=np.sort(df.competition_identity.unique());a,b=train_test_split(keys,test_size=holdout,random_state=seed)
+ return df[df.competition_identity.isin(a)].copy(),df[df.competition_identity.isin(b)].copy()
 
 def move(b,device):return {k:(v.to(device) if torch.is_tensor(v) else v) for k,v in b.items()}
 
@@ -155,15 +157,26 @@ def validation_loss(model,dl,args):
   count+=int((batch['tokens'][:,1:]!=PAD).sum())
  model.train();return total/max(count,1)
 
-def save_generator(model,path,args):torch.save({'model':model.state_dict(),'settings':model.settings,'max_peaks':args.max_peaks},path)
+def save_generator(model,path,args):torch.save({'model':model.state_dict(),'settings':model.settings,'max_peaks':args.max_peaks,'normalization_policy':POLICY,'rdkit_version':RDKIT_VERSION},path)
 
 def fit_generator(args):
- df=pd.read_parquet(args.train);df=df.dropna(subset=['normalized_smiles','inchikey14','ms2_mzs','ms2_normalized_intensities','precursor_mz'])
- # Three structure-disjoint splits: generator train, generator validation (checkpoint selection), ranker holdout.
- a,b=split_structures(df,args.seed,args.holdout);a,val=split_structures(a,args.seed+1,args.val_frac)
+ p=Path(args.output);p.mkdir(parents=True,exist_ok=True)
+ preprocessing=Path(args.preprocessing) if args.preprocessing else p/'preprocessing'
+ if not args.preprocessing:
+  build_preprocessing(args.train,preprocessing,args.seed,args.holdout,args.val_frac,args.preprocessing_workers)
+ mapping,report=load_preprocessing(preprocessing)
+ print('Reusing identity partitions:',report['partitions'],flush=True)
+ source=pd.read_parquet(args.train)
+ if len(source)!=report['rows_scanned']:raise ValueError('Input row count differs from preprocessing; regenerate the manifest')
+ df=apply_preprocessing(source,mapping)
+ df=df.dropna(subset=['ms2_mzs','ms2_normalized_intensities','precursor_mz'])
+ # Use the single identity-level manifest; never split raw supplied keys again.
+ a=df[df.split=='Training'];val=df[df.split=='Validation'];b=df[df.split=='Ranker holdout']
+ sets=[set(part.competition_identity) for part in (a,val,b)]
+ if any(sets[i]&sets[j] for i in range(3) for j in range(i)):raise ValueError('Identity leakage between partitions')
+ (p/'normalization_policy.json').write_text(json.dumps({'policy':POLICY,'rdkit_version':RDKIT_VERSION,'preprocessing':str(preprocessing.resolve())},indent=2))
  if args.limit:a=a.sample(min(args.limit,len(a)),random_state=args.seed)
  if args.val_max:val=val.sample(min(args.val_max,len(val)),random_state=args.seed)
- p=Path(args.output);p.mkdir(parents=True,exist_ok=True)
  tk=train_tokenizer(a,p/'tokenizer.json',args.vocab)
  # Sequences longer than the positional table cannot be trained on or generated; drop them rather than truncate into invalid SMILES.
  def drop_long(part,name):
@@ -207,7 +220,10 @@ def fit_generator(args):
  print('Saved best generator (generator.pt), last generator (generator_last.pt), tokenizer, and structure-disjoint splits to',p)
 
 def load_generator(folder,device):
+ require_competition_rdkit()
  p=Path(folder);ck=torch.load(p/'generator.pt',map_location='cpu',weights_only=False)
+ if ck.get('normalization_policy')!=POLICY or ck.get('rdkit_version')!=RDKIT_VERSION:
+  raise ValueError('Generator uses a different or missing molecular normalization policy; regenerate splits/tokenizer and retrain')
  m=Generator(**ck['settings']);m.load_state_dict(ck['model']);m.to(device).eval()
  return m,Tokenizer.from_file(str(p/'tokenizer.json')),ck['max_peaks']
 
@@ -309,6 +325,7 @@ def fit_ranker(args):
  # Eval numbers above come from the train-only ranker; the saved model is refit on every labelled structure.
  if not args.no_refit:ranker=train_lambdarank(frame,args.seed)
  report['saved_ranker_refit_on_all']=not args.no_refit
+ (p/'ranker_normalization_policy.json').write_text(json.dumps({'policy':POLICY,'rdkit_version':RDKIT_VERSION},indent=2))
  ranker.booster_.save_model(str(p/'ranker.txt'));write()
  print('Saved ranker to',p/'ranker.txt')
 
@@ -317,6 +334,9 @@ def order_candidates(frame,folder):
  if frame.empty:return frame
  ranker_path=Path(folder)/'ranker.txt'
  if ranker_path.exists():
+  policy_path=Path(folder)/'ranker_normalization_policy.json'
+  if not policy_path.exists() or json.loads(policy_path.read_text())!={'policy':POLICY,'rdkit_version':RDKIT_VERSION}:
+   raise ValueError('Ranker uses a different or missing molecular normalization policy; retrain it')
   ranker=lgb.Booster(model_file=str(ranker_path));frame['rank_score']=ranker.predict(frame[FEATURES],num_threads=1)
  else:
   print('WARNING: ranker.txt missing; sorting by generator scores only')
@@ -345,14 +365,17 @@ def submit(args):
  print('Wrote',p/'submission.csv','rows',len(sample))
 
 def main():
- ap=argparse.ArgumentParser();ap.add_argument('command',choices=['train','ranker','submit']);ap.add_argument('--train');ap.add_argument('--test');ap.add_argument('--sample-submission');ap.add_argument('--output',default='artifacts');ap.add_argument('--device',default='cuda' if torch.cuda.is_available() else 'cpu');ap.add_argument('--seed',type=int,default=42)
+ ap=argparse.ArgumentParser();ap.add_argument('command',choices=['preprocess','train','ranker','submit']);ap.add_argument('--train');ap.add_argument('--test');ap.add_argument('--sample-submission');ap.add_argument('--output',default='artifacts');ap.add_argument('--device',default='cuda' if torch.cuda.is_available() else 'cpu');ap.add_argument('--seed',type=int,default=42)
+ ap.add_argument('--preprocessing',help='existing preprocessing directory; its saved identity partitions are reused')
+ ap.add_argument('--preprocessing-workers',type=int,default=4,help='processes for normalizing unique molecules')
  ap.add_argument('--holdout',type=float,default=.1);ap.add_argument('--limit',type=int,default=0);ap.add_argument('--vocab',type=int,default=512);ap.add_argument('--d',type=int,default=384);ap.add_argument('--heads',type=int,default=8);ap.add_argument('--enc-layers',type=int,default=4);ap.add_argument('--dec-layers',type=int,default=4);ap.add_argument('--ff',type=int,default=1536);ap.add_argument('--max-peaks',type=int,default=128);ap.add_argument('--batch',type=int,default=32);ap.add_argument('--accum',type=int,default=4);ap.add_argument('--epochs',type=int,default=10);ap.add_argument('--workers',type=int,default=0);ap.add_argument('--bf16',action='store_true')
  ap.add_argument('--max-len',type=int,default=160,help='max SMILES tokens incl. BOS/EOS; longer training SMILES are dropped');ap.add_argument('--lr',type=float,default=3e-4,help='peak learning rate');ap.add_argument('--warmup',type=int,default=2000,help='warmup optimizer steps (capped at 10%% of training)');ap.add_argument('--post-ln',action='store_true',help='use the original post-LayerNorm layers instead of pre-LN')
  ap.add_argument('--val-frac',type=float,default=.02,help='fraction of generator-train structures held out for validation loss');ap.add_argument('--val-max',type=int,default=5000,help='max validation spectra (0 = all)');ap.add_argument('--eval-every',type=int,default=2000,help='validate/checkpoint every N optimizer steps (0 = epoch end only)')
  ap.add_argument('--infer-batch',type=int,default=8);ap.add_argument('--samples',type=int,default=100);ap.add_argument('--sample-chunk',type=int,default=100);ap.add_argument('--max-tokens',type=int,default=0,help='0 = model max_len-1');ap.add_argument('--temperature',type=float,default=1.);ap.add_argument('--progress-every',type=int,default=50,help='print sampling progress every N batches (0 = off)')
  ap.add_argument('--ranker-limit',type=int,default=2000,help='holdout structures to sample for the ranker (0 = all; slow)');ap.add_argument('--spectra-per-structure',type=int,default=5,help='max spectra per ranker structure (0 = all)');ap.add_argument('--ranker-eval-frac',type=float,default=.3,help='fraction of ranker structures held out to measure MRR@25');ap.add_argument('--min-positive-groups',type=int,default=2);ap.add_argument('--no-refit',action='store_true',help='save the train-split ranker instead of refitting on all ranker structures')
  args=ap.parse_args();seed_all(args.seed)
- if args.command=='train':fit_generator(args)
+ if args.command=='preprocess':build_preprocessing(args.train,args.output,args.seed,args.holdout,args.val_frac,args.preprocessing_workers)
+ elif args.command=='train':fit_generator(args)
  elif args.command=='ranker':fit_ranker(args)
  else:submit(args)
 if __name__=='__main__':main()

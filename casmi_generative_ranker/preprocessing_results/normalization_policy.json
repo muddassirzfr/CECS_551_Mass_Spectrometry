@@ -1,0 +1,5 @@
+{
+  "policy": "casmi26-tautomer-inchikey14-v1",
+  "rdkit_version": "2026.03.3",
+  "source": "https://www.kaggle.com/competitions/enveda-CASMI26-molecule-id-mass-spectra/overview"
+}

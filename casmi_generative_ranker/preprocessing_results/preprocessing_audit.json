@@ -1,0 +1,10 @@
+{
+  "spectrum_assignments_checked": 2539608,
+  "unassigned_valid_spectra": 0,
+  "identities_in_multiple_partitions": 0,
+  "identities_with_multiple_targets": 0,
+  "targets_independently_checked_against_scoring": 86,
+  "target_scoring_identity_mismatches": 0,
+  "regression_tests_passed": 5,
+  "synthetic_cpu_training_and_checkpoint_reload": "passed"
+}

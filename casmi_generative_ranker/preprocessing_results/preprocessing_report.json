@@ -1,0 +1,43 @@
+{
+  "policy": "casmi26-tautomer-inchikey14-v1",
+  "rdkit_version": "2026.03.3",
+  "source": "https://www.kaggle.com/competitions/enveda-CASMI26-molecule-id-mass-spectra/overview",
+  "input_path": "/Users/muddassirzafar/Library/CloudStorage/OneDrive-csulb/neural_networks/AIXBenyamin/enveda-CASMI26-molecule-id-mass-spectra/train.parquet",
+  "input_size_bytes": 3033286496,
+  "input_mtime_ns": 1789508964000000000,
+  "rows_scanned": 2539608,
+  "unique_input_smiles": 277566,
+  "unique_source_identity_smiles_pairs": 277566,
+  "valid_identities": 274193,
+  "invalid_unique_smiles": 0,
+  "invalid_spectra": 0,
+  "tautomer_status_counts": {
+    "Completed": 274533,
+    "MaxTransformsReached": 1917,
+    "MaxTautomersReached": 1116
+  },
+  "target_fallback_unique_smiles": 60,
+  "source_identities_merged": 1542,
+  "identities_with_multiple_source_smiles": 3056,
+  "source_identity_mismatches": 4469,
+  "source_ids_mapping_to_multiple_identities": 11,
+  "seed": 42,
+  "holdout": 0.1,
+  "val_frac": 0.02,
+  "partitions": {
+    "Ranker holdout": {
+      "identities": 27223,
+      "spectra": 247342
+    },
+    "Training": {
+      "identities": 242056,
+      "spectra": 2242315
+    },
+    "Validation": {
+      "identities": 4914,
+      "spectra": 49951
+    }
+  },
+  "target_policy": "Canonical tautomer, remove stereo, canonical SMILES; exact input fallback if capped enumeration changes target identity; minimum verified target per scoring identity",
+  "spectrum_manifest": "source_row is the zero-based row in the original parquet; invalid rows have no partition"
+}

@@ -1,5 +1,11 @@
 # Decoder-length EDA
 
+The results below describe the original supplied SMILES and 80/20 EDA split.
+The generator now uses competition-normalized targets and identity partitions
+from `../casmi_generative_ranker/molecular_preprocessing.py`. Recompute token
+lengths on those targets with the exact training-only tokenizer before choosing
+the production decoder limit; the saved EDA tokenizer is historical.
+
 Open `smiles_length_eda.ipynb` for the self-contained local/Colab analysis and
 saved outputs. The companion script runs the same analysis from the command line:
 
