@@ -1,0 +1,3 @@
+split,unique_molecules,valid_molecules,invalid_or_missing_molecules,missing_smiles_molecules,invalid_smiles_molecules,invalid_or_missing_pct,median,p95,p99,maximum,content_tokens,unknown_tokens,unknown_token_pct,molecules_with_unknown_pct,roundtrip_failure_pct,exceed_128_pct,exceed_160_pct,exceed_256_pct,exceed_512_pct
+Training,220770,220770,0,0,0,0.0,11.0,18.0,30.0,105,2253115,0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+Validation,55040,55040,0,0,0,0.0,11.0,18.0,30.0,107,561454,0,0.0,0.0,0.0,0.0,0.0,0.0,0.0

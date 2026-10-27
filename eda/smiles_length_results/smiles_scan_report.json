@@ -1,0 +1,99 @@
+{
+  "input_path": "/Users/muddassirzafar/Library/CloudStorage/OneDrive-csulb/neural_networks/AIXBenyamin/enveda-CASMI26-molecule-id-mass-spectra/train.parquet",
+  "split_mode": "NEW hash-grouped EDA split",
+  "seed": 42,
+  "validation_fraction": 0.2,
+  "batch_size": 8192,
+  "key_column": "inchikey14",
+  "smiles_column": "normalized_smiles",
+  "scan": {
+    "rows_scanned": 2539608,
+    "rows_missing_identity": 0,
+    "rows_missing_or_empty_smiles": 0,
+    "unique_identities": 275810,
+    "identities_with_multiple_smiles": 1612,
+    "unique_identity_smiles_pairs": 277566
+  },
+  "representative_policy": "One supplied identity; lexicographically smallest nonempty supplied SMILES",
+  "identity_caveat": "inchikey14 groups connectivity, including stereoisomers; supplied IDs are not chemically restandardized",
+  "tokenizer": {
+    "type": "BPE",
+    "requested_vocab": 512,
+    "actual_vocab": 512,
+    "fit_split": "Training",
+    "fit_valid_unique_smiles": 220770,
+    "special_tokens": [
+      "<pad>",
+      "<s>",
+      "</s>",
+      "[UNK]"
+    ],
+    "truncation": false,
+    "padding": false
+  },
+  "length_definition": "Untruncated content tokens + one BOS + one EOS, valid representatives only",
+  "percentile_method": "NumPy linear interpolation",
+  "invalid_denominator": "All unique supplied identities in each split, including missing SMILES",
+  "unknown_token_denominator": "Content tokens of valid unique representatives, excluding BOS/EOS",
+  "exceed_definition": "Strictly greater than each candidate limit; denominator = valid unique representatives",
+  "candidate_limits": [
+    128,
+    160,
+    256,
+    512
+  ],
+  "versions": {
+    "numpy": "2.3.5",
+    "pandas": "2.3.3",
+    "pyarrow": "21.0.0",
+    "rdkit": "2026.9.1",
+    "tokenizers": "0.21.4",
+    "matplotlib": "3.10.6"
+  },
+  "summary": [
+    {
+      "split": "Training",
+      "unique_molecules": 220770,
+      "valid_molecules": 220770,
+      "invalid_or_missing_molecules": 0,
+      "missing_smiles_molecules": 0,
+      "invalid_smiles_molecules": 0,
+      "invalid_or_missing_pct": 0.0,
+      "median": 11.0,
+      "p95": 18.0,
+      "p99": 30.0,
+      "maximum": 105,
+      "content_tokens": 2253115,
+      "unknown_tokens": 0,
+      "unknown_token_pct": 0.0,
+      "molecules_with_unknown_pct": 0.0,
+      "roundtrip_failure_pct": 0.0,
+      "exceed_128_pct": 0.0,
+      "exceed_160_pct": 0.0,
+      "exceed_256_pct": 0.0,
+      "exceed_512_pct": 0.0
+    },
+    {
+      "split": "Validation",
+      "unique_molecules": 55040,
+      "valid_molecules": 55040,
+      "invalid_or_missing_molecules": 0,
+      "missing_smiles_molecules": 0,
+      "invalid_smiles_molecules": 0,
+      "invalid_or_missing_pct": 0.0,
+      "median": 11.0,
+      "p95": 18.0,
+      "p99": 30.0,
+      "maximum": 107,
+      "content_tokens": 561454,
+      "unknown_tokens": 0,
+      "unknown_token_pct": 0.0,
+      "molecules_with_unknown_pct": 0.0,
+      "roundtrip_failure_pct": 0.0,
+      "exceed_128_pct": 0.0,
+      "exceed_160_pct": 0.0,
+      "exceed_256_pct": 0.0,
+      "exceed_512_pct": 0.0
+    }
+  ]
+}

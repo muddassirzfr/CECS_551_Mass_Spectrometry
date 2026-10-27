@@ -6,3 +6,4 @@ artifacts/
 *.parquet
 *.pt
 *.csv
+!eda/smiles_length_results/smiles_length_summary.csv
