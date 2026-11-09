@@ -1,0 +1,9 @@
+{
+  "seconds": 58.769586632959545,
+  "groups": 2000,
+  "candidates_per_group": 500,
+  "rows": 1000000,
+  "threads": 1,
+  "kind": "synthetic CPU timing proxy: train fit plus all-group refit",
+  "accuracy_claim": false
+}

@@ -1,0 +1,80 @@
+{
+  "estimates": {
+    "cnn_gru": {
+      "training_hours": 2.440875072763051,
+      "validation_hours": 0.06281359619939104,
+      "checkpoint_hours": 0.002065324318698711,
+      "loading_allowance_hours": 0.2440875072763051,
+      "total_hours": 2.762857035962724,
+      "validation_events": 97,
+      "planned_epochs": 10,
+      "training_spectra_per_epoch": 2242315,
+      "validation_spectra_per_event": 5000,
+      "included_in_base_plan": true
+    },
+    "transformer": {
+      "training_hours": 6.401199121520392,
+      "validation_hours": 0.0651366962793588,
+      "checkpoint_hours": 0.036399310199388614,
+      "loading_allowance_hours": 0.6401199121520392,
+      "total_hours": 7.155870575556457,
+      "validation_events": 97,
+      "planned_epochs": 10,
+      "training_spectra_per_epoch": 2242315,
+      "validation_spectra_per_event": 5000,
+      "included_in_base_plan": true
+    },
+    "pooled_gru": {
+      "training_hours": 2.164828846881436,
+      "validation_hours": 0.03460387382643237,
+      "checkpoint_hours": 0.0014067420259945922,
+      "loading_allowance_hours": 0.21648288468814358,
+      "total_hours": 2.4303378828272844,
+      "validation_events": 97,
+      "planned_epochs": 10,
+      "training_spectra_per_epoch": 2242315,
+      "validation_spectra_per_event": 5000,
+      "included_in_base_plan": false
+    }
+  },
+  "beam_hours": 0.010259234219896218,
+  "cnn_validation_beam_hours": 0.000529244575526617,
+  "ranker_gpu_hours": 0.40470690469697324,
+  "ranker_chemistry_cpu_hours": 0.13696234996637535,
+  "ranker_fit_cpu_proxy_hours": 0.016324885175822097,
+  "full_validation_beam_hours": 0.2972273270819763,
+  "full_holdout_gpu_compute_hours": 10.010101522155876,
+  "full_holdout_chemistry_cpu_hours": 3.3876541565383214,
+  "full_holdout_inline_allocation_hours_before_fit": 13.418079353063238,
+  "ranker_subset_inline_allocation_hours_including_fit_proxy": 0.5588158229487534,
+  "base_plan_models": [
+    "cnn_gru",
+    "transformer"
+  ],
+  "base_plan_gpu_hours": 9.929516090314603,
+  "evaluation_retry_reserve_hours": 2.0,
+  "minimum_total_budget_with_reserve_and_prior_spend": 11.989516090314604,
+  "proposed_gpu_budget_hours": 12.0,
+  "proposed_remaining_gpu_hours_after_base_and_reserve": 0.010483909685396142,
+  "ranker_within_proposed_budget": false,
+  "workloads": {
+    "training_spectra_per_epoch": 2242315,
+    "epochs": 10,
+    "validation_partition_spectra": 49951,
+    "teacher_forced_validation_spectra_per_event": 5000,
+    "subset_beam_validation_spectra": 553,
+    "test_spectra": 1213,
+    "ranker_subset_spectra_cap": 10000,
+    "ranker_subset_structures": 2000,
+    "ranker_subset_spectra_per_structure_cap": 5,
+    "ranker_full_holdout_spectra": 247342
+  },
+  "benchmark_budget_hours": 1.5,
+  "gpu_budget_hours": null,
+  "spent_gpu_hours": 0.06,
+  "remaining_gpu_hours_after_base_plan": null,
+  "ranker_within_budget": false,
+  "estimates_only": true,
+  "queue_wait_included": false,
+  "full_training_authorized": false
+}

@@ -1,0 +1,154 @@
+{
+  "status": "complete",
+  "source": {
+    "path": "/Users/muddassirzafar/Library/CloudStorage/OneDrive-csulb/neural_networks/AIXBenyamin/CECS_551_Mass_Spectrometry/dataset/train.parquet",
+    "size_bytes": 3033286496,
+    "mtime_ns": 1789508964000000000,
+    "sha256": "9423f90ec08b941a9646b535bf0606183e86ff0c5a297978f5a70693d41bcd98"
+  },
+  "counts": {
+    "rows": 2539608,
+    "eligible": 2539608,
+    "quarantined": 0,
+    "correction_rows": 0,
+    "invalid_molecule": 0,
+    "all_missing_adduct": 0,
+    "all_unknown_adduct": 0,
+    "all_missing_ionization_mode": 0,
+    "all_unknown_ionization_mode": 0,
+    "all_missing_instrument_type": 33350,
+    "all_unknown_instrument_type": 1348,
+    "all_missing_collision_energy_ev": 337443,
+    "all_invalid_collision_energy_values": 0,
+    "all_invalid_precursor": 0,
+    "all_unusable_fragment_arrays": 0,
+    "all_raw_fragment_entries": 401806233,
+    "all_clean_positive_fragments": 401806233,
+    "all_invalid_fragment_pairs": 0,
+    "all_removed_nonpositive_or_nonfinite_pairs": 0,
+    "all_nonfinite_pairs": 0,
+    "all_nonpositive_mz_pairs": 0,
+    "all_negative_intensity_pairs": 0,
+    "all_zero_intensity_pairs": 0,
+    "all_sparse_before": 207577,
+    "all_sparse_after": 207577,
+    "all_empty_after": 0,
+    "all_duplicate_mz_excess": 3645,
+    "all_above_precursor_peaks": 21803433,
+    "all_intensity_above_one": 0,
+    "eligible_missing_adduct": 0,
+    "eligible_unknown_adduct": 0,
+    "eligible_missing_ionization_mode": 0,
+    "eligible_unknown_ionization_mode": 0,
+    "eligible_missing_instrument_type": 33350,
+    "eligible_unknown_instrument_type": 1348,
+    "eligible_missing_collision_energy_ev": 337443,
+    "eligible_invalid_collision_energy_values": 0,
+    "eligible_invalid_precursor": 0,
+    "eligible_unusable_fragment_arrays": 0,
+    "eligible_raw_fragment_entries": 401806233,
+    "eligible_clean_positive_fragments": 401806233,
+    "eligible_invalid_fragment_pairs": 0,
+    "eligible_removed_nonpositive_or_nonfinite_pairs": 0,
+    "eligible_nonfinite_pairs": 0,
+    "eligible_nonpositive_mz_pairs": 0,
+    "eligible_negative_intensity_pairs": 0,
+    "eligible_zero_intensity_pairs": 0,
+    "eligible_sparse_before": 207577,
+    "eligible_sparse_after": 207577,
+    "eligible_empty_after": 0,
+    "eligible_duplicate_mz_excess": 3645,
+    "eligible_above_precursor_peaks": 21803433,
+    "eligible_intensity_above_one": 0,
+    "eligible_duplicate_mz_rows": 682,
+    "eligible_above_precursor_rows": 1217023
+  },
+  "duplicates": {
+    "exact_record": {
+      "groups": 501,
+      "member_rows": 1002,
+      "excess_rows": 501,
+      "eligible_member_rows": 1002,
+      "eligible_excess_rows": 501,
+      "groups_with_identity_conflict": 0,
+      "groups_with_split_conflict": 0
+    },
+    "cleaned_measurement": {
+      "groups": 2581,
+      "member_rows": 5162,
+      "excess_rows": 2581,
+      "eligible_member_rows": 5162,
+      "eligible_excess_rows": 2581,
+      "groups_with_identity_conflict": 22,
+      "groups_with_split_conflict": 6
+    }
+  },
+  "normalization_policy": "casmi26-tautomer-inchikey14-v1",
+  "rdkit_version": "2026.03.3",
+  "molecular_manifest": {
+    "path": "/Users/muddassirzafar/Library/CloudStorage/OneDrive-csulb/neural_networks/AIXBenyamin/CECS_551_Mass_Spectrometry/casmi_generative_ranker/preprocessing_results",
+    "report_sha256": "3048ac09656708118ab189f520d9c325eca5324ac6ba305a70e8c37c9154da88",
+    "mapping_sha256": "1d8a4931dc193139d51925ccdbccd83b4226d2468f719bacfe9bb04add2811e8"
+  },
+  "partitions": {
+    "Training": {
+      "source_rows": 2242315,
+      "baseline_usable": 2242315
+    },
+    "Validation": {
+      "source_rows": 49951,
+      "baseline_usable": 49951
+    },
+    "Ranker holdout": {
+      "source_rows": 247342,
+      "baseline_usable": 247342
+    }
+  },
+  "policy": {
+    "sparse_below": 5,
+    "base_relative_cutoff": 0.0,
+    "production_fragment_cap": 127,
+    "fingerprint": "BLAKE2b-128 over protocol-5 source-column tuple; cleaned-measurement fingerprint sorts full valid float32 pairs and ignores labels/provenance",
+    "uncertain_records": "retained and flagged; duplicates not deleted; identities/targets/splits unchanged",
+    "empty_intensity": "retained as precursor-only; excluded from intensity-ratio denominators",
+    "experiments": [
+      {
+        "name": "no_cutoff_127",
+        "relative_cutoff": 0.0,
+        "fragment_cap": 127
+      },
+      {
+        "name": "one_percent_127",
+        "relative_cutoff": 0.01,
+        "fragment_cap": 127
+      },
+      {
+        "name": "no_cutoff_255",
+        "relative_cutoff": 0.0,
+        "fragment_cap": 255
+      },
+      {
+        "name": "one_percent_255",
+        "relative_cutoff": 0.01,
+        "fragment_cap": 255
+      }
+    ]
+  },
+  "versions": {
+    "python": "3.13.9",
+    "numpy": "2.3.5",
+    "pandas": "2.3.3",
+    "pyarrow": "21.0.0"
+  },
+  "runtime": {
+    "seconds": 665.7421030829937,
+    "peak_rss_gib": 0.8382110595703125,
+    "batch_size": 4096,
+    "worker_processes": 1,
+    "arrow_threads": 1
+  },
+  "script_sha256": "59950c0f2f3d755149d83ee0fc218fb257a9f6aaddd36f33874c9b43bbbaf226",
+  "shared_preparation_sha256": "b2372a8cefc92cc649b34c8ea0af410a29c59aa3e8d4b9958e1e5ae6d0c0ec81",
+  "modeling_variants_trained": false,
+  "thresholds_adopted": false
+}

@@ -1,0 +1,87 @@
+{
+  "architecture": "cnn_gru",
+  "settings": {
+    "vocab": 512,
+    "d": 128,
+    "heads": 2,
+    "enc_layers": 1,
+    "dec_layers": 2,
+    "ff": 512,
+    "dropout": 0.1,
+    "max_len": 160,
+    "norm_first": true,
+    "architecture": "cnn_gru",
+    "metadata": true,
+    "cnn_max_mz": 4096.0,
+    "cnn_bin_width": 0.1,
+    "cnn_pool_bins": 16
+  },
+  "parameters": 771744,
+  "batch": 32,
+  "accumulation": 4,
+  "effective_batch": 128,
+  "max_peaks": 128,
+  "max_len": 160,
+  "training": {
+    "optimizer_steps": 150,
+    "warmup_steps": 20,
+    "spectra": 19200,
+    "seconds": 7.5240670926868916,
+    "spectra_per_second": 2551.811375879632,
+    "peak_memory": {
+      "allocated_gib": 0.13393068313598633,
+      "reserved_gib": 0.2265625
+    },
+    "includes_loading_transfer_and_optimizer": true
+  },
+  "full_cap_memory": {
+    "status": "passed",
+    "peak_memory": {
+      "allocated_gib": 0.15485906600952148,
+      "reserved_gib": 0.224609375
+    },
+    "peak_positions": 129,
+    "target_tokens": 160
+  },
+  "validation": {
+    "spectra": 553,
+    "seconds": 0.25783362332731485,
+    "token_loss": 5.070390286549601,
+    "accuracy_claim": false,
+    "spectra_per_second": 2144.793967767257
+  },
+  "two_checkpoint_seconds": 0.07665121182799339,
+  "beam": {
+    "spectra": 64,
+    "beam_size": 25,
+    "seconds": 0.22050262242555618,
+    "spectra_per_second": 290.2459811860379,
+    "peak_memory": {
+      "allocated_gib": 0.0563654899597168,
+      "reserved_gib": 0.18359375
+    },
+    "completed_fraction": 1.0,
+    "generated_token_lengths": {
+      "min": 6.0,
+      "p50": 9.0,
+      "p95": 21.0,
+      "p99": 23.0,
+      "max": 29.0
+    },
+    "weights": "Short benchmark run; remeasure decoding on a validated checkpoint",
+    "kv_cache": false
+  },
+  "candidate_generation": {
+    "spectra": 16,
+    "samples_per_spectrum": 100,
+    "seconds": 0.43565073423087597,
+    "generation_seconds": 0.27758077904582024,
+    "chemistry_seconds": 0.15378249902278185,
+    "peak_memory": {
+      "allocated_gib": 0.3675236701965332,
+      "reserved_gib": 10.767578125
+    },
+    "valid_unique_candidates": 4,
+    "weights": "Short benchmark run; candidate recall is not evidence for ranker inclusion"
+  }
+}

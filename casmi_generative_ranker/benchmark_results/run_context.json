@@ -1,0 +1,28 @@
+{
+  "benchmark_allowance_hours": 1.5,
+  "full_training_budget_hours": null,
+  "successful_pbs_job": "159855.its-hpc02.its.csulb.edu",
+  "retry_job": "159854.its-hpc02.its.csulb.edu",
+  "successful_job_wall_seconds": 136,
+  "retry_job_wall_seconds": 39,
+  "total_gpu_allocation_seconds": 216,
+  "pbs_cpu_cores_requested": 8,
+  "pytorch_and_blas_thread_cap": 4,
+  "ranker_fit_thread_cap": 1,
+  "peak_host_ram_gib": 2.1934661865234375,
+  "successful_job_cpu_seconds": 112,
+  "gpu_count": 1,
+  "full_training_launched": false,
+  "notes": "Original Transformer/pooled-GRU run exited 0 after one 39-second startup retry. The separate CNN-GRU job exited 0 and ran 150 timed updates. Total GPU allocation use is 175+41=216 seconds. PBS logs/source snapshots preserve the measurement provenance. Full training and structure-level prediction quality remain untested.",
+  "proposed_full_run_budget_hours": 12.0,
+  "proposed_evaluation_retry_reserve_hours": 2.0,
+  "proposed_budget_is_approved": false,
+  "cnn_successful_pbs_job": "159856.its-hpc02.its.csulb.edu",
+  "cnn_job_wall_seconds": 41,
+  "cnn_peak_host_ram_gib": 1.4268760681152344,
+  "cnn_job_cpu_seconds": 26,
+  "planned_baseline": "cnn_gru",
+  "auxiliary_models": [
+    "pooled_gru"
+  ]
+}

@@ -1,0 +1,84 @@
+{
+  "architecture": "transformer",
+  "settings": {
+    "vocab": 512,
+    "d": 384,
+    "heads": 8,
+    "enc_layers": 4,
+    "dec_layers": 4,
+    "ff": 1536,
+    "dropout": 0.1,
+    "max_len": 160,
+    "norm_first": true,
+    "architecture": "transformer",
+    "metadata": true
+  },
+  "parameters": 17614208,
+  "batch": 32,
+  "accumulation": 4,
+  "effective_batch": 128,
+  "max_peaks": 128,
+  "max_len": 160,
+  "training": {
+    "optimizer_steps": 150,
+    "warmup_steps": 20,
+    "spectra": 19200,
+    "seconds": 19.73187903035432,
+    "spectra_per_second": 973.0446842119744,
+    "peak_memory": {
+      "allocated_gib": 0.8617563247680664,
+      "reserved_gib": 0.955078125
+    },
+    "includes_loading_transfer_and_optimizer": true
+  },
+  "full_cap_memory": {
+    "status": "passed",
+    "peak_memory": {
+      "allocated_gib": 1.1597785949707031,
+      "reserved_gib": 1.236328125
+    },
+    "peak_positions": 129,
+    "target_tokens": 160
+  },
+  "validation": {
+    "spectra": 553,
+    "seconds": 0.26736935041844845,
+    "token_loss": 3.779767986547167,
+    "accuracy_claim": false,
+    "spectra_per_second": 2068.2998972564474
+  },
+  "two_checkpoint_seconds": 1.3509022342041135,
+  "beam": {
+    "spectra": 64,
+    "beam_size": 25,
+    "seconds": 1.3384640794247389,
+    "spectra_per_second": 47.81600117913264,
+    "peak_memory": {
+      "allocated_gib": 0.27930498123168945,
+      "reserved_gib": 0.34765625
+    },
+    "completed_fraction": 1.0,
+    "generated_token_lengths": {
+      "min": 3.0,
+      "p50": 13.0,
+      "p95": 20.0,
+      "p99": 24.0,
+      "max": 38.0
+    },
+    "weights": "Short benchmark run; remeasure decoding on a validated checkpoint",
+    "kv_cache": false
+  },
+  "candidate_generation": {
+    "spectra": 16,
+    "samples_per_spectrum": 100,
+    "seconds": 3.1247478015720844,
+    "generation_seconds": 2.331111771054566,
+    "chemistry_seconds": 0.7889031358063221,
+    "peak_memory": {
+      "allocated_gib": 0.8303351402282715,
+      "reserved_gib": 0.953125
+    },
+    "valid_unique_candidates": 29,
+    "weights": "Short benchmark run; candidate recall is not evidence for ranker inclusion"
+  }
+}

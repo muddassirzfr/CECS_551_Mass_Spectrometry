@@ -1,0 +1,24 @@
+#!/bin/bash
+#PBS -N casmi-cnn
+#PBS -q batch
+#PBS -W group_list=hpc2-coe-users
+#PBS -l nodes=1:ppn=8:gpus=1:GPU
+#PBS -l walltime=00:30:00
+#PBS -j oe
+set -euo pipefail
+cd "${PBS_O_WORKDIR:?Submit from the CNN benchmark directory}"
+export PYTHONPATH="$(readlink -f "$PWD/dependencies_current")"
+export TOKENIZERS_PARALLELISM=false
+export OMP_NUM_THREADS=4 MKL_NUM_THREADS=4 OPENBLAS_NUM_THREADS=4
+runtime="${CASMI_PYTHON:-$HOME/vizwiz-venv/bin/python}"
+mkdir -p results
+exec > >(tee "results/job_${PBS_JOBID}.log") 2>&1
+hostname
+date -u
+nvidia-smi --query-gpu=index,name,memory.total,memory.used,utilization.gpu --format=csv
+"$runtime" -m unittest discover -s code -p 'test_pipeline.py' -v
+"$runtime" -m unittest discover -s code -p 'test_molecular_preprocessing.py' -v
+"$runtime" code/benchmark.py run --data data --output results --bf16 --steps 150 --warmup 20 \
+  --architectures cnn_gru --skip-ranker-proxy --skip-report --cpu-threads 4 \
+  --cnn-max-mz 4096 --cnn-bin-width 0.1 --cnn-pool-bins 16
+date -u

@@ -1,0 +1,15 @@
+{
+  "original_pdf_name": "Phase 3 Prelimary Data Analysis and Feasibility.pdf",
+  "original_pdf_sha256": "018a7360f8b2c3eec7e5c0f145072f029b1929ad5bef2f7f720168dde2926b6e",
+  "baseline": "cnn_gru",
+  "primary": "transformer",
+  "auxiliary": [
+    "pooled_gru"
+  ],
+  "measurement_allowance_hours": 1.5,
+  "recorded_gpu_allocation_seconds": 216,
+  "full_training_authorized": false,
+  "prediction_quality_tested": false,
+  "full_dataset_loading_tested": false,
+  "independent_verification_claimed": false
+}

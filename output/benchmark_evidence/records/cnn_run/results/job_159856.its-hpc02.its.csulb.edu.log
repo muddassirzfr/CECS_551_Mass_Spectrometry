@@ -1,0 +1,171 @@
+n036.cluster.pssclabs.com
+Sun Nov  8 06:46:02 UTC 2026
+index, name, memory.total [MiB], memory.used [MiB], utilization.gpu [%]
+0, NVIDIA GeForce RTX 3090, 24576 MiB, 1 MiB, 0 %
+1, NVIDIA GeForce RTX 3090, 24576 MiB, 1 MiB, 0 %
+2, NVIDIA GeForce RTX 3090, 24576 MiB, 1 MiB, 0 %
+3, NVIDIA GeForce RTX 3090, 24576 MiB, 1 MiB, 0 %
+test_beam_preserves_scores_and_completion (test_pipeline.PipelineTests.test_beam_preserves_scores_and_completion) ... ok
+test_causality_padding_and_metadata_conditioning (test_pipeline.PipelineTests.test_causality_padding_and_metadata_conditioning) ... ok
+test_cnn_grid_has_mass_axis_and_separate_precursor (test_pipeline.PipelineTests.test_cnn_grid_has_mass_axis_and_separate_precursor) ... ok
+test_submission_format_and_missing_coverage (test_pipeline.PipelineTests.test_submission_format_and_missing_coverage) ... ok
+test_transformer_uses_129_total_encoder_positions_and_160_tokens (test_pipeline.PipelineTests.test_transformer_uses_129_total_encoder_positions_and_160_tokens) ... ok
+test_unequal_microbatches_match_full_batch_update (test_pipeline.PipelineTests.test_unequal_microbatches_match_full_batch_update) ... ok
+test_unterminated_sequences_are_not_candidates (test_pipeline.PipelineTests.test_unterminated_sequences_are_not_candidates) ... 
+
+
+ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 4.010s
+
+OK
+test_generated_tautomers_deduplicate_and_label_positive (test_molecular_preprocessing.MolecularPreprocessingTests.test_generated_tautomers_deduplicate_and_label_positive) ... 
+
+
+ok
+test_invalids_and_version_guard (test_molecular_preprocessing.MolecularPreprocessingTests.test_invalids_and_version_guard) ... ok
+test_manifest_all_spectra_share_identity_and_target (test_molecular_preprocessing.MolecularPreprocessingTests.test_manifest_all_spectra_share_identity_and_target) ... Normalizing 45 unique SMILES (45 uncached) with RDKit 2026.03.3, workers=1
+{
+  "policy": "casmi26-tautomer-inchikey14-v1",
+  "rdkit_version": "2026.03.3",
+  "source": "https://www.kaggle.com/competitions/enveda-CASMI26-molecule-id-mass-spectra/overview",
+  "input_path": "/tmp/tmp0m5r0e_u/train.parquet",
+  "input_size_bytes": 2801,
+  "input_mtime_ns": 1794120374457696256,
+  "rows_scanned": 46,
+  "unique_input_smiles": 45,
+  "unique_source_identity_smiles_pairs": 46,
+  "valid_identities": 41,
+  "invalid_unique_smiles": 2,
+  "invalid_spectra": 2,
+  "tautomer_status_counts": {
+    "Completed": 44,
+    "not_attempted": 2
+  },
+  "target_fallback_unique_smiles": 0,
+  "source_identities_merged": 2,
+  "identities_with_multiple_source_smiles": 2,
+  "source_identity_mismatches": 44,
+  "source_ids_mapping_to_multiple_identities": 0,
+  "seed": 42,
+  "holdout": 0.2,
+  "val_frac": 0.3,
+  "partitions": {
+    "Ranker holdout": {
+      "identities": 9,
+      "spectra": 10
+    },
+    "Training": {
+      "identities": 22,
+      "spectra": 24
+    },
+    "Validation": {
+      "identities": 10,
+      "spectra": 10
+    }
+  },
+  "target_policy": "Canonical tautomer, remove stereo, canonical SMILES; exact input fallback if capped enumeration changes target identity; minimum verified target per scoring identity",
+  "spectrum_manifest": "source_row is the zero-based row in the original parquet; invalid rows have no partition"
+}
+Normalizing 45 unique SMILES (0 uncached) with RDKit 2026.03.3, workers=1
+{
+  "policy": "casmi26-tautomer-inchikey14-v1",
+  "rdkit_version": "2026.03.3",
+  "source": "https://www.kaggle.com/competitions/enveda-CASMI26-molecule-id-mass-spectra/overview",
+  "input_path": "/tmp/tmp0m5r0e_u/train.parquet",
+  "input_size_bytes": 2801,
+  "input_mtime_ns": 1794120374457696256,
+  "rows_scanned": 46,
+  "unique_input_smiles": 45,
+  "unique_source_identity_smiles_pairs": 46,
+  "valid_identities": 41,
+  "invalid_unique_smiles": 2,
+  "invalid_spectra": 2,
+  "tautomer_status_counts": {
+    "Completed": 44,
+    "not_attempted": 2
+  },
+  "target_fallback_unique_smiles": 0,
+  "source_identities_merged": 2,
+  "identities_with_multiple_source_smiles": 2,
+  "source_identity_mismatches": 44,
+  "source_ids_mapping_to_multiple_identities": 0,
+  "seed": 42,
+  "holdout": 0.2,
+  "val_frac": 0.3,
+  "partitions": {
+    "Ranker holdout": {
+      "identities": 9,
+      "spectra": 10
+    },
+    "Training": {
+      "identities": 22,
+      "spectra": 24
+    },
+    "Validation": {
+      "identities": 10,
+      "spectra": 10
+    }
+  },
+  "target_policy": "Canonical tautomer, remove stereo, canonical SMILES; exact input fallback if capped enumeration changes target identity; minimum verified target per scoring identity",
+  "spectrum_manifest": "source_row is the zero-based row in the original parquet; invalid rows have no partition"
+}
+ok
+test_matches_scoring_and_equivalent_forms (test_molecular_preprocessing.MolecularPreprocessingTests.test_matches_scoring_and_equivalent_forms) ... ok
+test_training_uses_manifest_and_checkpoints_require_policy (test_molecular_preprocessing.MolecularPreprocessingTests.test_training_uses_manifest_and_checkpoints_require_policy) ... Normalizing 82 unique SMILES (82 uncached) with RDKit 2026.03.3, workers=1
+{
+  "policy": "casmi26-tautomer-inchikey14-v1",
+  "rdkit_version": "2026.03.3",
+  "source": "https://www.kaggle.com/competitions/enveda-CASMI26-molecule-id-mass-spectra/overview",
+  "input_path": "/tmp/tmpywif9oo_/train.parquet",
+  "input_size_bytes": 5622,
+  "input_mtime_ns": 1794120374659705985,
+  "rows_scanned": 82,
+  "unique_input_smiles": 82,
+  "unique_source_identity_smiles_pairs": 82,
+  "valid_identities": 80,
+  "invalid_unique_smiles": 1,
+  "invalid_spectra": 1,
+  "tautomer_status_counts": {
+    "Completed": 81,
+    "not_attempted": 1
+  },
+  "target_fallback_unique_smiles": 0,
+  "source_identities_merged": 0,
+  "identities_with_multiple_source_smiles": 1,
+  "source_identity_mismatches": 81,
+  "source_ids_mapping_to_multiple_identities": 1,
+  "seed": 42,
+  "holdout": 0.2,
+  "val_frac": 0.2,
+  "partitions": {
+    "Ranker holdout": {
+      "identities": 15,
+      "spectra": 15
+    },
+    "Training": {
+      "identities": 54,
+      "spectra": 55
+    },
+    "Validation": {
+      "identities": 11,
+      "spectra": 11
+    }
+  },
+  "target_policy": "Canonical tautomer, remove stereo, canonical SMILES; exact input fallback if capped enumeration changes target identity; minimum verified target per scoring identity",
+  "spectrum_manifest": "source_row is the zero-based row in the original parquet; invalid rows have no partition"
+}
+ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 6.487s
+
+OK
+cnn_gru: 25/150 complete optimizer updates
+cnn_gru: 50/150 complete optimizer updates
+cnn_gru: 75/150 complete optimizer updates
+cnn_gru: 100/150 complete optimizer updates
+cnn_gru: 125/150 complete optimizer updates
+cnn_gru: 150/150 complete optimizer updates
+Sun Nov  8 06:46:43 UTC 2026

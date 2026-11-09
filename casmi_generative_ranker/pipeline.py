@@ -1,7 +1,7 @@
 """Retrieval-free CASMI spectrum -> SMILES -> LightGBM pipeline.
 Run `python pipeline.py --help`. Requires train.parquet and sample_submission.csv for actual data.
 """
-import argparse, json, math, random
+import argparse, hashlib, json, math, random, time
 from functools import partial
 from pathlib import Path
 import numpy as np
@@ -13,6 +13,7 @@ from torch.utils.data import DataLoader, Dataset
 from rdkit import Chem, RDLogger
 from rdkit.Chem import Descriptors, rdMolDescriptors
 from tokenizers import Tokenizer, models, trainers, processors
+from spectral_preprocessing import peaks
 from molecular_preprocessing import (
  POLICY, RDKIT_VERSION, apply_preprocessing, build_preprocessing,
  canonical_candidate, load_preprocessing, require_competition_rdkit,
@@ -36,23 +37,25 @@ def neutral_mass(precursor,adduct):
  offsets={'[M+H]+':1.007276466812,'[M-H]-':-1.007276466812,'[M+Na]+':22.989218,'[M+NH4]+':18.033823,'[M+K]+':38.963158}
  return float(precursor)-offsets[adduct] if adduct in offsets else None
 
-def peaks(row,max_peaks):
- mz=np.asarray(row['ms2_mzs'],dtype=np.float32)
- ints=np.asarray(row['ms2_normalized_intensities'],dtype=np.float32)
- ok=np.isfinite(mz)&np.isfinite(ints)&(mz>0)&(ints>0)
- mz,ints=mz[ok],ints[ok]
- if len(mz):
-  ix=np.argsort(-ints)[:max_peaks-1];mz,ints=mz[ix],ints[ix];ints=ints/max(float(ints.max()),1e-9)
- mz=np.r_[float(row['precursor_mz']),mz].astype(np.float32)
- ints=np.r_[2.,ints].astype(np.float32)
- return mz,ints
-
 class Spectra(Dataset):
  def __init__(self,df,max_peaks):self.df=df.reset_index(drop=True);self.max_peaks=max_peaks
  def __len__(self):return len(self.df)
  def __getitem__(self,i):
   r=self.df.iloc[i];m,z=peaks(r,self.max_peaks)
-  return {'mz':m,'int':z,'smiles':r.get('normalized_smiles',None),'id':str(r.get('molecule_id',i)),'adduct':str(r.get('adduct','')),'precursor':float(r['precursor_mz'])}
+  return {'mz':m,'int':z,'smiles':r.get('normalized_smiles',None),'id':str(r.get('molecule_id',i)),'adduct':r.get('adduct',''),'precursor':float(r['precursor_mz']),
+          'ionization_mode':r.get('ionization_mode',''),'instrument_type':r.get('instrument_type',''),'collision_energy_ev':r.get('collision_energy_ev',None)}
+
+def spectrum_metadata(item):
+ # Stable hashing needs no fitted vocabulary and reserves zero for missing data.
+ categories=[]
+ for key in ('adduct','ionization_mode','instrument_type'):
+  value=item.get(key)
+  categories.append(1+int.from_bytes(hashlib.blake2b(value.encode(),digest_size=8).digest(),'big')%127 if isinstance(value,str) and value.strip() else 0)
+ energy=item.get('collision_energy_ev')
+ values=np.asarray([] if energy is None else energy,dtype=np.float32).reshape(-1)
+ values=values[np.isfinite(values)&(values>=0)]
+ numeric=[float(values.min())/100,float(np.median(values))/100,float(values.max())/100,1.] if len(values) else [0.,0.,0.,0.]
+ return categories,numeric
 
 def collate(items,tokenizer=None):
  b=len(items);n=max(len(x['mz']) for x in items)
@@ -60,6 +63,9 @@ def collate(items,tokenizer=None):
  for i,x in enumerate(items):
   k=len(x['mz']);mz[i,:k]=torch.from_numpy(x['mz']);ints[i,:k]=torch.from_numpy(x['int']);mask[i,:k]=True
  out={'mz':mz,'ints':ints,'mask':mask,'meta':items}
+ metadata=[spectrum_metadata(x) for x in items]
+ out['metadata_categories']=torch.tensor([x[0] for x in metadata],dtype=torch.long)
+ out['metadata_numeric']=torch.tensor([x[1] for x in metadata],dtype=torch.float32)
  if tokenizer is not None:
   seq=[tokenizer.encode(x['smiles']).ids for x in items];t=torch.full((b,max(map(len,seq))),PAD,dtype=torch.long)
   for i,s in enumerate(seq):t[i,:len(s)]=torch.tensor(s)
@@ -74,19 +80,64 @@ class PeakEmbedding(nn.Module):
   a=mz.unsqueeze(-1)*self.freq;return self.mlp(torch.cat([a.sin(),a.cos(),ints.unsqueeze(-1)],-1))
 
 class Generator(nn.Module):
- def __init__(self,vocab,d=384,heads=8,enc_layers=4,dec_layers=4,ff=1536,dropout=.1,max_len=256,norm_first=True):
-  super().__init__();self.settings=dict(vocab=vocab,d=d,heads=heads,enc_layers=enc_layers,dec_layers=dec_layers,ff=ff,dropout=dropout,max_len=max_len,norm_first=norm_first)
+ def __init__(self,vocab,d=384,heads=8,enc_layers=4,dec_layers=4,ff=1536,dropout=.1,max_len=160,norm_first=True,architecture='transformer',metadata=True,cnn_max_mz=4096.,cnn_bin_width=.1,cnn_pool_bins=16):
+  super().__init__();self.settings=dict(vocab=vocab,d=d,heads=heads,enc_layers=enc_layers,dec_layers=dec_layers,ff=ff,dropout=dropout,max_len=max_len,norm_first=norm_first,architecture=architecture,metadata=metadata)
+  if architecture not in ('transformer','pooled_gru','cnn_gru'):raise ValueError('Unknown architecture')
+  if d%2 or (architecture=='transformer' and d%heads):raise ValueError('d must be even and divisible by Transformer heads')
+  self.architecture=architecture;self.use_metadata=metadata
+  if architecture=='cnn_gru':
+   if not math.isfinite(cnn_max_mz) or not math.isfinite(cnn_bin_width) or cnn_max_mz<=0 or cnn_bin_width<=0 or cnn_pool_bins<1:raise ValueError('Invalid CNN grid settings')
+   self.settings.update(cnn_max_mz=cnn_max_mz,cnn_bin_width=cnn_bin_width,cnn_pool_bins=cnn_pool_bins)
+   self.cnn_bins=math.ceil(cnn_max_mz/cnn_bin_width)
+   self.cnn=nn.Sequential(nn.Conv1d(2,32,9,stride=4,padding=4),nn.GELU(),nn.Conv1d(32,64,9,stride=4,padding=4),nn.GELU(),nn.Conv1d(64,d,9,stride=4,padding=4),nn.GELU(),nn.AdaptiveAvgPool1d(cnn_pool_bins),nn.Flatten(),nn.Linear(d*cnn_pool_bins,d))
+  else:self.peak=PeakEmbedding(d)
+  if metadata:
+   self.metadata_embeddings=nn.ModuleList([nn.Embedding(128,d,padding_idx=0) for _ in range(3)])
+   self.metadata_numeric=nn.Sequential(nn.Linear(4,d),nn.GELU(),nn.Linear(d,d))
   # Pre-LN layers need a final LayerNorm on each stack; they train stably from scratch at higher learning rates.
-  self.peak=PeakEmbedding(d);self.encoder=nn.TransformerEncoder(nn.TransformerEncoderLayer(d,heads,ff,dropout,batch_first=True,activation='gelu',norm_first=norm_first),enc_layers,norm=nn.LayerNorm(d) if norm_first else None,enable_nested_tensor=False)
+  if architecture=='transformer':
+   self.encoder=nn.TransformerEncoder(nn.TransformerEncoderLayer(d,heads,ff,dropout,batch_first=True,activation='gelu',norm_first=norm_first),enc_layers,norm=nn.LayerNorm(d) if norm_first else None,enable_nested_tensor=False)
+   self.decoder=nn.TransformerDecoder(nn.TransformerDecoderLayer(d,heads,ff,dropout,batch_first=True,activation='gelu',norm_first=norm_first),dec_layers,norm=nn.LayerNorm(d) if norm_first else None)
+  else:
+   self.decoder=nn.GRU(d,d,num_layers=dec_layers,batch_first=True,dropout=dropout if dec_layers>1 else 0)
   self.emb=nn.Embedding(vocab,d,padding_idx=PAD);self.pos=nn.Embedding(max_len,d)
-  self.decoder=nn.TransformerDecoder(nn.TransformerDecoderLayer(d,heads,ff,dropout,batch_first=True,activation='gelu',norm_first=norm_first),dec_layers,norm=nn.LayerNorm(d) if norm_first else None)
   self.head=nn.Linear(d,vocab)
  @property
  def max_len(self):return self.pos.num_embeddings
- def encode(self,b):return self.encoder(self.peak(b['mz'],b['ints']),src_key_padding_mask=~b['mask'])
+ def memory_mask(self,mask):
+  return torch.cat([torch.ones(mask.shape[0],1,dtype=torch.bool,device=mask.device),mask],1) if self.use_metadata else mask
+ def metadata_vector(self,b,reference):
+  categories=b.get('metadata_categories',torch.zeros(reference.shape[0],3,dtype=torch.long,device=reference.device))
+  numeric=b.get('metadata_numeric',torch.zeros(reference.shape[0],4,device=reference.device))
+  return self.metadata_numeric(numeric)+sum(emb(categories[:,i]) for i,emb in enumerate(self.metadata_embeddings))
+ def binned_spectrum(self,b):
+  # Mass-axis convolution is independent of the intensity ordering of retained peaks.
+  mz=b['mz'];valid=b['mask'];limit=self.settings['cnn_max_mz']
+  if ((~torch.isfinite(mz)|(mz<0)|(mz>=limit))&valid).any():raise ValueError(f'CNN grid requires retained m/z in [0, {limit}); increase --cnn-max-mz for this dataset')
+  indices=(mz/self.settings['cnn_bin_width']).floor().long().clamp(0,self.cnn_bins-1)
+  grid=mz.new_zeros(mz.shape[0],2,self.cnn_bins)
+  fragments=b['ints']*valid;fragments=fragments.clone();fragments[:,0]=0
+  grid[:,0].scatter_add_(1,indices,fragments)
+  grid[:,1].scatter_add_(1,indices[:,:1],valid[:,:1].to(mz.dtype))
+  return grid
+ def encode(self,b):
+  if self.architecture=='cnn_gru':
+   context=self.cnn(self.binned_spectrum(b))
+   if self.use_metadata:context=context+self.metadata_vector(b,context)
+   return context.unsqueeze(1)
+  x=self.peak(b['mz'],b['ints'])
+  if self.use_metadata:
+   metadata=self.metadata_vector(b,x)
+   x=torch.cat([metadata.unsqueeze(1),x],1)
+  return self.encoder(x,src_key_padding_mask=~self.memory_mask(b['mask'])) if self.architecture=='transformer' else x
  def decode(self,t,mem,mask):
   n=t.shape[1]
   if n>self.max_len:raise ValueError(f'token sequence length {n} exceeds model max_len {self.max_len}')
+  mask=self.memory_mask(mask)
+  if self.architecture in ('pooled_gru','cnn_gru'):
+   context=mem[:,0] if self.architecture=='cnn_gru' else (mem*mask.unsqueeze(-1)).sum(1)/mask.sum(1,keepdim=True).clamp_min(1)
+   z,_=self.decoder(self.emb(t),context.unsqueeze(0).expand(self.decoder.num_layers,-1,-1).contiguous())
+   return self.head(z)
   x=self.emb(t)+self.pos(torch.arange(n,device=t.device))[None,:,:]
   causal=torch.ones(n,n,device=t.device,dtype=torch.bool).triu(1)
   z=self.decoder(x,mem,tgt_mask=causal,tgt_key_padding_mask=(t==PAD),memory_key_padding_mask=~mask)
@@ -96,6 +147,7 @@ class Generator(nn.Module):
   return F.cross_entropy(logits.reshape(-1,logits.size(-1)).float(),t[:,1:].reshape(-1),ignore_index=PAD,reduction=reduction)
  @torch.inference_mode()
  def sample(self,b,n_samples=32,max_tokens=0,temperature=1.,chunk=8):
+  if n_samples<1 or chunk<1 or temperature<=0:raise ValueError('samples, chunk, and temperature must be positive')
   self.eval();mem=self.encode(b);out=[]
   # The BOS token occupies one position, so at most max_len-1 tokens can be generated.
   max_tokens=self.max_len-1 if max_tokens<=0 else min(max_tokens,self.max_len-1)
@@ -111,6 +163,36 @@ class Generator(nn.Module):
     if done.all():break
    out.extend([(ids[k].cpu().tolist(),float(scores[k]),int(lengths[k])) for k in range(ids.shape[0])])
   return [out[i*n_samples:(i+1)*n_samples] for i in range(len(b['meta']))] if n_samples<=chunk else _rearrange_samples(out,len(b['meta']),n_samples,chunk)
+
+ @torch.inference_mode()
+ def beam(self,b,beam_size=25,max_tokens=0,length_penalty=1.):
+  """Batched beam search; completed beams are retained with unchanged scores.
+
+  Full prefixes are recomputed, as in sampling. No KV cache is assumed.
+  """
+  if beam_size<1 or length_penalty<0:raise ValueError('Invalid beam settings')
+  self.eval();mem=self.encode(b);batch=mem.shape[0];k=beam_size
+  mem=mem.repeat_interleave(k,0);mask=b['mask'].repeat_interleave(k,0)
+  ids=torch.full((batch,k,1),BOS,dtype=torch.long,device=mem.device)
+  scores=torch.full((batch,k),-torch.inf,device=mem.device);scores[:,0]=0
+  lengths=torch.zeros(batch,k,dtype=torch.long,device=mem.device);done=torch.zeros_like(lengths,dtype=torch.bool)
+  limit=self.max_len-1 if max_tokens<=0 else min(max_tokens,self.max_len-1)
+  for _ in range(limit):
+   logits=self.decode(ids.flatten(0,1),mem,mask)[:,-1].float()
+   logp=F.log_softmax(logits,-1).reshape(batch,k,-1);v=logp.shape[-1]
+   logp[:,:,[PAD,BOS,UNK]]=-torch.inf
+   logp=logp.masked_fill(done.unsqueeze(-1),-torch.inf)
+   logp[:,:,EOS]=torch.where(done,0.,logp[:,:,EOS])
+   raw=scores.unsqueeze(-1)+logp;new_lengths=lengths+(~done).long()
+   ranked=raw/new_lengths.clamp_min(1).unsqueeze(-1).pow(length_penalty)
+   _,indices=ranked.flatten(1).topk(k,dim=1)
+   parent=indices//v;token=indices%v
+   scores=raw.flatten(1).gather(1,indices);lengths=new_lengths.gather(1,parent)
+   done=done.gather(1,parent)|(token==EOS)
+   ids=torch.cat([ids.gather(1,parent.unsqueeze(-1).expand(-1,-1,ids.shape[-1])),token.unsqueeze(-1)],-1)
+   if done.all():break
+  sequences=ids.cpu().tolist();sc=scores.cpu().tolist();ln=lengths.cpu().tolist()
+  return [[(sequences[i][j],sc[i][j],ln[i][j]) for j in range(k) if math.isfinite(sc[i][j])] for i in range(batch)]
 
 def _rearrange_samples(out,b,n,chunk):
  # Sampling is performed in chunks, with each chunk grouped by input spectrum.
@@ -142,6 +224,19 @@ def split_structures(df,seed,holdout):
 
 def move(b,device):return {k:(v.to(device) if torch.is_tensor(v) else v) for k,v in b.items()}
 
+def optimizer_update(model,opt,scaler,token_count,loss_divisor=1.,scheduler=None):
+ # Normalize by actual target tokens, including a short final accumulation group.
+ if token_count<1:raise ValueError('Optimizer update requires at least one target token')
+ scaler.unscale_(opt)
+ for parameter in model.parameters():
+  if parameter.grad is not None:parameter.grad.div_(token_count/loss_divisor)
+ torch.nn.utils.clip_grad_norm_(model.parameters(),1.)
+ previous_scale=scaler.get_scale();scaler.step(opt);scaler.update()
+ updated=not scaler.is_enabled() or scaler.get_scale()>=previous_scale
+ if updated and scheduler is not None:scheduler.step()
+ opt.zero_grad(set_to_none=True)
+ return updated
+
 def warmup_cosine(warmup,total):
  def f(step):
   if step<warmup:return (step+1)/warmup
@@ -168,6 +263,9 @@ def fit_generator(args):
  print('Reusing identity partitions:',report['partitions'],flush=True)
  source=pd.read_parquet(args.train)
  if len(source)!=report['rows_scanned']:raise ValueError('Input row count differs from preprocessing; regenerate the manifest')
+ if getattr(args,'spectral_audit',None):
+  from audit_spectra import apply_audit_to_frame
+  source=apply_audit_to_frame(source,args.spectral_audit,args.train)
  df=apply_preprocessing(source,mapping)
  df=df.dropna(subset=['ms2_mzs','ms2_normalized_intensities','precursor_mz'])
  # Use the single identity-level manifest; never split raw supplied keys again.
@@ -186,7 +284,7 @@ def fit_generator(args):
  a=drop_long(a,'train');val=drop_long(val,'val')
  if a.empty:raise ValueError(f'No training spectra left after the --max-len {args.max_len} filter; raise --max-len.')
  a.to_parquet(p/'generator_train.parquet');val.to_parquet(p/'generator_val.parquet');b.to_parquet(p/'ranker_holdout.parquet')
- model=Generator(tk.get_vocab_size(),args.d,args.heads,args.enc_layers,args.dec_layers,args.ff,max_len=args.max_len,norm_first=not args.post_ln).to(args.device)
+ model=Generator(tk.get_vocab_size(),args.d,args.heads,args.enc_layers,args.dec_layers,args.ff,max_len=args.max_len,norm_first=not args.post_ln,architecture=args.architecture,cnn_max_mz=args.cnn_max_mz,cnn_bin_width=args.cnn_bin_width,cnn_pool_bins=args.cnn_pool_bins).to(args.device)
  opt=torch.optim.AdamW(model.parameters(),lr=args.lr,weight_decay=.01)
  coll=partial(collate,tokenizer=tk)
  dl=DataLoader(Spectra(a,args.max_peaks),batch_size=args.batch,shuffle=True,collate_fn=coll,num_workers=args.workers)
@@ -205,17 +303,18 @@ def fit_generator(args):
   rec={'epoch':epoch,'opt_step':opt_step,'lr':sched.get_last_lr()[0],'train_loss':train_loss,'val_loss':vl,'best_val_loss':best,'saved_best':improved}
   print(json.dumps(rec),flush=True);log.write(json.dumps(rec)+'\n');log.flush()
  for epoch in range(args.epochs):
-  model.train();total=0.;steps=0;opt.zero_grad(set_to_none=True)
+  model.train();total=0.;tokens_seen=0;update_tokens=0;opt.zero_grad(set_to_none=True)
   for step,batch in enumerate(dl):
    batch=move(batch,args.device)
    with amp(args):
-    loss=model(batch)/args.accum
+    loss=model(batch,reduction='sum')/args.accum
    scaler.scale(loss).backward()
-   total+=float(loss.detach())*args.accum;steps+=1
+   count=int((batch['tokens'][:,1:]!=PAD).sum());update_tokens+=count;tokens_seen+=count
+   total+=float(loss.detach())*args.accum
    if (step+1)%args.accum==0 or step+1==len(dl):
-    scaler.unscale_(opt);torch.nn.utils.clip_grad_norm_(model.parameters(),1.);scaler.step(opt);scaler.update();opt.zero_grad(set_to_none=True);sched.step();opt_step+=1
-    if args.eval_every and opt_step%args.eval_every==0:checkpoint(epoch+1,total/max(steps,1))
-  checkpoint(epoch+1,total/max(steps,1))
+    updated=optimizer_update(model,opt,scaler,update_tokens,args.accum,sched);update_tokens=0;opt_step+=int(updated)
+    if updated and args.eval_every and opt_step%args.eval_every==0:checkpoint(epoch+1,total/max(tokens_seen,1))
+  checkpoint(epoch+1,total/max(tokens_seen,1))
  log.close()
  print('Saved best generator (generator.pt), last generator (generator_last.pt), tokenizer, and structure-disjoint splits to',p)
 
@@ -224,29 +323,42 @@ def load_generator(folder,device):
  p=Path(folder);ck=torch.load(p/'generator.pt',map_location='cpu',weights_only=False)
  if ck.get('normalization_policy')!=POLICY or ck.get('rdkit_version')!=RDKIT_VERSION:
   raise ValueError('Generator uses a different or missing molecular normalization policy; regenerate splits/tokenizer and retrain')
- m=Generator(**ck['settings']);m.load_state_dict(ck['model']);m.to(device).eval()
+ settings=dict(ck['settings']);settings.setdefault('metadata',False)
+ m=Generator(**settings);m.load_state_dict(ck['model']);m.to(device).eval()
  return m,Tokenizer.from_file(str(p/'tokenizer.json')),ck['max_peaks']
 
 def decode_smiles(tk,ids):
- if EOS in ids:ids=ids[:ids.index(EOS)]
+ if EOS not in ids:return None
+ ids=ids[:ids.index(EOS)]
  ids=[i for i in ids if i not in (PAD,BOS)]
  return tk.decode(ids,skip_special_tokens=True).replace(' ','')
 
-def build_candidates(df,model,tk,max_peaks,args):
+def build_candidates(df,model,tk,max_peaks,args,timing=None):
  loader=DataLoader(Spectra(df,max_peaks),batch_size=args.infer_batch,shuffle=False,collate_fn=collate,num_workers=args.workers)
  records={};done=0
  for nb,batch in enumerate(loader,1):
   batch=move(batch,args.device)
-  with amp(args):samples=model.sample(batch,args.samples,args.max_tokens,args.temperature,args.sample_chunk)
+  if timing is not None and args.device.startswith('cuda'):torch.cuda.synchronize()
+  started=time.perf_counter()
+  with amp(args):
+   if getattr(args,'decoding','sample')=='beam':samples=model.beam(batch,args.beam_size,args.max_tokens,args.length_penalty)
+   else:samples=model.sample(batch,args.samples,args.max_tokens,args.temperature,args.sample_chunk)
+  if timing is not None:
+   if args.device.startswith('cuda'):torch.cuda.synchronize()
+   timing['generation_seconds']=timing.get('generation_seconds',0.)+time.perf_counter()-started
+  started=time.perf_counter()
   for meta,seqs in zip(batch['meta'],samples):
    group=records.setdefault(meta['id'],{'rows':[],'candidates':{},'n_samples':0});group['rows'].append(meta);group['n_samples']+=len(seqs)
    for ids,score,n in seqs:
-    parsed=canonical(decode_smiles(tk,ids))
+    smiles=decode_smiles(tk,ids)
+    if not smiles:continue
+    parsed=canonical(smiles)
     if parsed is None:continue
     sm,ikey,mol=parsed
     old=group['candidates'].get(ikey)
     if old is None:group['candidates'][ikey]={'smiles':sm,'mol':mol,'scores':[score],'lengths':[n]}
     else:old['scores'].append(score);old['lengths'].append(n)
+  if timing is not None:timing['chemistry_seconds']=timing.get('chemistry_seconds',0.)+time.perf_counter()-started
   done+=len(batch['meta'])
   if args.progress_every and nb%args.progress_every==0:print(f'sampled {done}/{len(df)} spectra',flush=True)
  return records
@@ -305,12 +417,13 @@ def fit_ranker(args):
  if args.spectra_per_structure:df=df.sample(frac=1,random_state=args.seed).groupby('inchikey14').head(args.spectra_per_structure)
  df=df.copy();df['molecule_id']=df['inchikey14'] # group spectra by structure for evaluation
  tr_keys,ev_keys=train_test_split(np.sort(keys),test_size=args.ranker_eval_frac,random_state=args.seed)
- print(f'ranker structures={len(keys)} (train={len(tr_keys)} eval={len(ev_keys)}) spectra={len(df)} samples/spectrum={args.samples}',flush=True)
+ generated_count=args.beam_size if args.decoding=='beam' else args.samples
+ print(f'ranker structures={len(keys)} (train={len(tr_keys)} eval={len(ev_keys)}) spectra={len(df)} candidates/spectrum={generated_count} decoding={args.decoding}',flush=True)
  m,tk,max_peaks=load_generator(p,args.device)
  groups=build_candidates(df,m,tk,max_peaks,args);frame=candidate_frame(groups,{k:k for k in keys})
  frame.to_parquet(p/'ranker_candidates.parquet',index=False)
  tr=frame[frame.molecule_id.isin(tr_keys)];ev=frame[frame.molecule_id.isin(ev_keys)].copy();ev_truth={k:k for k in ev_keys}
- report={'structures':len(keys),'train_structures':len(tr_keys),'eval_structures':len(ev_keys),'spectra':len(df),'samples_per_spectrum':args.samples,
+ report={'structures':len(keys),'train_structures':len(tr_keys),'eval_structures':len(ev_keys),'spectra':len(df),'samples_per_spectrum':generated_count,'decoding':args.decoding,
   'valid_unique_candidates_per_structure':float(frame.groupby('molecule_id').size().reindex(keys,fill_value=0).mean()),
   'candidate_recall_all':float(frame.groupby('molecule_id').label.max().reindex(keys,fill_value=0).mean()),
   'eval':{f'generator_{s}':ranking_metrics(ev,ev_truth,s) for s in ('logprob','logprob_per_token','candidate_frequency')}}
@@ -343,6 +456,16 @@ def order_candidates(frame,folder):
   frame['rank_score']=frame['logprob_per_token']
  return frame.sort_values(['molecule_id','rank_score'],ascending=[True,False])
 
+def submission_frame(sample,frame):
+ if set(sample.columns)!={'molecule_id','smiles'}:raise ValueError('Expected molecule_id,smiles sample-submission schema')
+ if sample.empty or sample.molecule_id.isna().any() or sample.molecule_id.astype(str).duplicated().any():raise ValueError('Submission IDs must be nonempty and unique')
+ result=sample.copy();result['molecule_id']=result.molecule_id.astype(str)
+ preds={str(k):';'.join(v.smiles.head(25)) for k,v in frame.groupby('molecule_id',sort=False)}
+ result['smiles']=result.molecule_id.map(preds)
+ missing=result.loc[result.smiles.isna()|result.smiles.eq(''),'molecule_id'].tolist()
+ if missing:raise ValueError(f'No completed valid candidates for {len(missing)} molecules (examples: {missing[:5]}). Increase generation coverage before submitting.')
+ return result
+
 def submit(args):
  p=Path(args.output);df=pd.read_parquet(args.test)
  if 'molecule_id' not in df:raise ValueError('test data must contain molecule_id')
@@ -352,21 +475,17 @@ def submit(args):
  frame.to_csv(p/'ranked_candidates_debug.csv',index=False)
  sample=pd.read_csv(args.sample_submission)
  print('Sample submission columns:',sample.columns.tolist())
- # Only write when an unambiguous supported wide format is detected.
- idcol='molecule_id'
- predcols=[c for c in sample.columns if c!=idcol]
- if idcol not in sample or len(predcols)!=25:
-  raise ValueError('Unknown sample_submission schema: inspect sample_submission.csv and adapt writer. Candidate debug CSV saved.')
- preds={str(k):v.smiles.head(25).tolist() for k,v in frame.groupby('molecule_id',sort=False)}
- for i,row in sample.iterrows():
-  values=preds.get(str(row[idcol]),[])
-  for j,c in enumerate(predcols):sample.at[i,c]=values[j] if j<len(values) else ''
+ sample=submission_frame(sample,frame)
  sample.to_csv(p/'submission.csv',index=False)
  print('Wrote',p/'submission.csv','rows',len(sample))
 
 def main():
  ap=argparse.ArgumentParser();ap.add_argument('command',choices=['preprocess','train','ranker','submit']);ap.add_argument('--train');ap.add_argument('--test');ap.add_argument('--sample-submission');ap.add_argument('--output',default='artifacts');ap.add_argument('--device',default='cuda' if torch.cuda.is_available() else 'cpu');ap.add_argument('--seed',type=int,default=42)
  ap.add_argument('--preprocessing',help='existing preprocessing directory; its saved identity partitions are reused')
+ ap.add_argument('--spectral-audit',help='completed CPU spectral audit directory; replay corrections and exclude quarantined rows')
+ ap.add_argument('--architecture',choices=['transformer','pooled_gru','cnn_gru'],default='transformer')
+ ap.add_argument('--cnn-max-mz',type=float,default=4096.);ap.add_argument('--cnn-bin-width',type=float,default=.1);ap.add_argument('--cnn-pool-bins',type=int,default=16)
+ ap.add_argument('--decoding',choices=['sample','beam'],default='sample');ap.add_argument('--beam-size',type=int,default=25);ap.add_argument('--length-penalty',type=float,default=1.)
  ap.add_argument('--preprocessing-workers',type=int,default=4,help='processes for normalizing unique molecules')
  ap.add_argument('--holdout',type=float,default=.1);ap.add_argument('--limit',type=int,default=0);ap.add_argument('--vocab',type=int,default=512);ap.add_argument('--d',type=int,default=384);ap.add_argument('--heads',type=int,default=8);ap.add_argument('--enc-layers',type=int,default=4);ap.add_argument('--dec-layers',type=int,default=4);ap.add_argument('--ff',type=int,default=1536);ap.add_argument('--max-peaks',type=int,default=128);ap.add_argument('--batch',type=int,default=32);ap.add_argument('--accum',type=int,default=4);ap.add_argument('--epochs',type=int,default=10);ap.add_argument('--workers',type=int,default=0);ap.add_argument('--bf16',action='store_true')
  ap.add_argument('--max-len',type=int,default=160,help='max SMILES tokens incl. BOS/EOS; longer training SMILES are dropped');ap.add_argument('--lr',type=float,default=3e-4,help='peak learning rate');ap.add_argument('--warmup',type=int,default=2000,help='warmup optimizer steps (capped at 10%% of training)');ap.add_argument('--post-ln',action='store_true',help='use the original post-LayerNorm layers instead of pre-LN')

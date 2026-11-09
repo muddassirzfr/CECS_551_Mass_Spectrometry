@@ -1,12 +1,119 @@
 # CASMI 2026 retrieval-free generator + LightGBM ranker
 
-Architecture: MS/MS peak pairs -> sinusoidal peak embedding -> Transformer encoder -> causal Transformer SMILES decoder -> sampled candidates -> shared tautomer normalization / competition InChIKey14 deduplication -> candidate features -> LightGBM LambdaRank -> top 25.
+Architecture: MS/MS peak pairs plus spectrum metadata -> sinusoidal peak embedding -> Transformer encoder -> causal Transformer SMILES decoder -> sampled or beam candidates -> shared tautomer normalization / competition InChIKey14 deduplication -> optional LightGBM LambdaRank -> top 25.
 
-This is an **implementation scaffold**, not a trained or benchmarked competition solution. All three commands have been run end to end on a small synthetic dataset (CPU), but not on real CASMI data. You must verify the actual competition schema (column names `normalized_smiles`, `inchikey14`, `ms2_mzs`, `ms2_normalized_intensities`, `precursor_mz`, `adduct`, `molecule_id`), adduct vocabulary and sample-submission format. The submission writer only supports a 25-column wide format plus `molecule_id`; it deliberately errors on other formats instead of producing a misleading CSV.
+This is an **experimental implementation**, not a trained competition solution. Correctness tests include synthetic CPU training and checkpoint reload. The local data schema has been checked. The submission writer supports the competition's `molecule_id,smiles` format, with up to 25 guesses joined by semicolons. It refuses to write when any required molecule has no completed valid candidate.
+
+## Computational benchmark before full training
+
+Commit to the planned **CNN + RNN baseline (`--architecture cnn_gru`)** and one Transformer. The baseline uses two channels on a 0.1-m/z grid over [0, 4096), Conv1D channels 32/64/128 with kernel 9 and stride 4, pooling to 16 cells, and a two-layer width-128 GRU decoder. Both models share partitions, tokenizer, metadata, targets, source peak cap and a 160-token output cap. Reproduce the baseline with `--architecture cnn_gru --d 128 --dec-layers 2 --cnn-max-mz 4096 --cnn-bin-width 0.1 --cnn-pool-bins 16`.
+
+The earlier **pooled peak embeddings + GRU** measurement is auxiliary only, excluded from the required comparison and budget. CNN + GRU was separately benchmarked in PBS job 159856. No pooled-GRU timings are transferred. The [resource report](benchmark_results/report.md) states the configuration and procedure directly. Prediction quality remains untested.
+
+From the repository root, prepare a reproducible sample without loading the full spectra file into RAM:
+
+```bash
+python casmi_generative_ranker/benchmark.py prepare --output artifacts/benchmark_data
+python casmi_generative_ranker/benchmark.py run --data artifacts/benchmark_data \
+  --output artifacts/benchmark --bf16 --steps 150 --warmup 20
+# Recalculate the execution plan once the total allocation is known:
+python casmi_generative_ranker/benchmark.py report --output artifacts/benchmark \
+  --gpu-budget-hours YOUR_TOTAL_GPU_HOURS --spent-gpu-hours HOURS_ALREADY_USED \
+  --evaluation-retry-reserve-hours 2
+```
+
+The default Transformer matches training defaults: width 384, eight heads, four encoder/four decoder layers, feed-forward width 1536, microbatch 32, accumulation four, 129 total encoder positions (127 fragments + precursor + metadata) and a 160-token cap. `benchmark.py` measures 150 full optimizer updates after 20 warm-up updates, including loading and device transfer. It also measures full-cap training memory, validation, checkpoint writing, beam decoding (width 25), and ranker candidate sampling (100 samples per spectrum). All configuration, observed lengths, GPU identity, allocated/reserved memory and raw timings are saved to JSON.
+
+`hpc_benchmark.pbs` targets the CSULB HPC2 Torque/PBS `batch` queue with one GPU, eight CPU cores and a 30-minute walltime, using the `hpc2-coe-users` group. `setup_hpc_benchmark.sh` installs dependencies in a fresh task directory using an existing Python runtime, verifies imports, and publishes a `dependencies_current` symlink; it does not modify existing environments. Stage `code/`, prepared `data/`, and the PBS script under a new run directory, run setup, then run `qsub hpc_benchmark.pbs` there. A CUDA allocation is mandatory; `--allow-cpu-smoke --device cpu` only tests the harness.
+
+`report.md` contains the requested six-column stage table. Total hours use the full length-filtered training count × planned epochs / measured throughput, measured validation/checkpoint costs, and an explicit extra loading allowance. Queue wait is excluded. CPU ranker timing is a **synthetic workload proxy**, not a quality result; GPU candidate generation and CPU chemistry/fitting are reported separately. Short-run decoding weights do not establish candidate recall, so decoding must be remeasured on a validated checkpoint.
+
+Default ranker estimates cover **at most 10,000 spectra** (2,000 structures × up to five spectra), not all 247,342 reserved spectra. The report separately estimates full-holdout generation. The base beam estimate covers **553 validation spectra plus 1,213 test spectra**; the full validation partition has 49,951 spectra and is shown as a separate alternative. Training estimates include at most 5,000 teacher-forced validation spectra per event.
+
+The confirmed 1.5-hour allowance was for benchmarking only. A **proposed** 12-GPU-hour total plan reserves two hours for additional evaluation/retries, leaving about 0.01 hours after 0.060 hours of measurement allocation usage and the recalculated 9.93-hour CNN + GRU/Transformer base plan. The minimum total including the two-hour reserve and recorded measurement spending is 11.99 hours. The capped ranker would need about 0.56 allocation-hours when inline CPU processing and the fitting proxy retain the GPU, so it does not fit that proposal. Neither the proposed budget nor its reserve is an approved full-training allocation. Change `--proposed-gpu-budget-hours` and `--evaluation-retry-reserve-hours` to explore other plans; set `--gpu-budget-hours` only when an actual full-run allocation is known.
+
+Cycling 4,096 spectra and the original 2.19 GiB host-RAM peak **support preliminary compute-feasibility estimates**. They do not establish full-dataset loading speed or RAM usage. Profile the full pandas load on a compute node under a RAM limit or use streaming before full training.
+
+Add a ranker or ensemble only when held-out MRR@25 improves and the remaining GPU-hour budget covers it. **If the estimated additional cost exceeds the remaining budget, retain the single Transformer.** No full training is launched by the benchmark.
 
 ## Installation
 
 `pip install -r requirements.txt`
+
+## Phase 3 CPU audit and filtering experiments
+
+From the repository root, reuse the existing molecular manifest and scan the
+training file with one CPU worker:
+
+```bash
+python casmi_generative_ranker/audit_spectra.py \
+  --train dataset/train.parquet \
+  --preprocessing casmi_generative_ranker/preprocessing_results \
+  --output output/cpu_preprocessing_audit
+```
+
+The [CPU audit report](../output/cpu_preprocessing_audit/report.md) contains the
+before/after table and the four measured combinations: no relative cutoff or 1%,
+with 127 or 255 **fragment** peaks. The counts cover the full training file,
+including its saved training, validation and ranker-holdout partitions. The
+comparison starts from untruncated finite positive pairs; retained intensity
+excludes the artificial precursor. Thresholds remain experiments, and prediction
+accuracy comparisons are planned for the modeling stage.
+
+The completed scan covers **2,539,608 spectra** and **401,806,233 fragment pairs**.
+It found no invalid targets, precursors, fragment arrays/pairs or collision-energy
+components requiring correction; all source records remain usable. It retained
+and flagged 501 exact duplicate excess rows, 207,577 spectra with fewer than five
+fragments, 33,350 missing instrument types and 337,443 missing collision energies.
+Six cleaned-measurement duplicate groups (12 rows) span saved partitions; review
+these ambiguous inputs before interpreting future validation accuracy. Identities
+and partitions have not been changed. The scan took 665.7 seconds with a process
+peak RSS of 0.838 GiB.
+
+Implemented cleaning removes nonfinite/nonpositive-m/z/negative-intensity pairs
+and noninformative zero-intensity pairs, using the same helper as model input
+preparation. Invalid precursors, missing/misaligned arrays and saved invalid
+molecular targets are quarantined. Missing metadata, sparse spectra (diagnostic
+flag: fewer than five positive fragments), duplicates, repeated m/z values and
+above-precursor fragments are retained and flagged. Invalid collision-energy
+components are ignored using the existing finite, nonnegative metadata policy.
+No molecular normalization or split assignment is recomputed.
+
+The source Parquet and molecular manifest are preserved. `audit_rows.parquet`
+contains every source row and flags, including all duplicate members;
+`duplicate_groups.parquet` lists fingerprints and group summaries.
+`cleaned_corrections.parquet` stores only changed usable measurements, and
+`quarantined_rows.parquet` records unusable source rows. Source/manifest hashes,
+versions, runtime and partition counts are saved in `audit_report.json`.
+The CSV tables provide machine-readable audit and filtering counts.
+
+The report also embeds a grouped intensity-retention chart and three actual
+training spectra: median peak count, low recorded signal within a matched
+source/instrument/adduct cohort, and an uncommon supplied adduct. The figures
+measure intensity and illustrate input variation; they do not measure
+identification accuracy. Normalized peak heights cannot establish absolute
+signal strength or a signal-to-noise ratio. PNG, PDF and SVG exports, actual
+selected records, selection rules and hashes are saved under
+`output/cpu_preprocessing_audit/figures`. Regenerate them after the audit:
+
+```bash
+python casmi_generative_ranker/plot_cpu_audit.py \
+  --train dataset/train.parquet --audit output/cpu_preprocessing_audit
+```
+
+During the later modeling stage, pass
+`--spectral-audit output/cpu_preprocessing_audit` to `pipeline.py train` alongside
+the same `--train` and `--preprocessing` paths. This replays corrections and
+excludes quarantined records before applying the saved molecular mapping; the
+source hash must match. It retains the existing no-cutoff/top-127 input policy.
+The audit itself does no model training. Its batched RAM usage does not establish
+the RAM needed by the full-pandas training loader.
+
+Regression checks:
+
+```bash
+python -m unittest discover -s casmi_generative_ranker -p 'test_audit_spectra.py' -v
+```
 
 ## Consistent molecular preprocessing
 
@@ -88,7 +195,8 @@ For the original notebook-scale architecture use `--d 768 --heads 12 --enc-layer
 Data is normalized before splitting and grouped by recomputed competition identity into three disjoint sets: generator train, generator validation (`--val-frac`, capped at `--val-max` spectra), and ranker holdout (`--holdout`).
 
 - **Length limit:** SMILES longer than `--max-len` tokens (default 160, including BOS/EOS) are dropped from training and validation, with the count printed. The same limit caps generation length.
-- **Optimizer:** AdamW with linear warmup (`--warmup` steps, capped at 10% of training) then cosine decay from peak `--lr` (default 3e-4). Layers are pre-LayerNorm by default; `--post-ln` restores the original layout.
+- **Metadata:** a separate encoder token embeds stable hashed adduct, ionization-mode and instrument categories, plus minimum/median/maximum collision energy and a missingness flag. Hashing uses 128 buckets per field, so category collisions are possible. Missing fields are supported. Legacy policy-compatible checkpoints still load with metadata disabled; retraining is required to learn the new metadata inputs.
+- **Optimizer:** AdamW with linear warmup (`--warmup` steps, capped at 10% of training) then cosine decay from peak `--lr` (default 3e-4). Layers are pre-LayerNorm by default; `--post-ln` restores the original layout. Gradient accumulation uses the actual target-token count, including incomplete final groups.
 - **Validation and checkpoints:** token-level validation loss every `--eval-every` optimizer steps and at each epoch end. `generator.pt` is the best-validation checkpoint, `generator_last.pt` the latest. Every evaluation is appended to `train_log.jsonl`.
 
 Outputs: `generator.pt`, `generator_last.pt`, `tokenizer.json`, `train_log.jsonl`, `generator_train.parquet`, `generator_val.parquet`, `ranker_holdout.parquet`.
@@ -108,6 +216,8 @@ If fewer than `--min-positive-groups` training structures have a correct candida
 `python pipeline.py submit --test /path/to/test.parquet --sample-submission /path/to/sample_submission.csv --output artifacts --samples 100 --bf16`
 
 Writes `ranked_candidates_debug.csv` and, if the format is supported, `submission.csv`. This is an inference output, not an official score; Kaggle computes the score.
+
+Use `--decoding beam --beam-size 25` for beam search. Sequences that hit the token cap without EOS are excluded from candidates under either decoding method. Fewer than 25 guesses are allowed; missing coverage raises an error instead of writing empty cells. The submission format follows the [competition specification](https://www.kaggle.com/competitions/enveda-CASMI26-molecule-id-mass-spectra/).
 
 ## Known limitations and next improvements
 

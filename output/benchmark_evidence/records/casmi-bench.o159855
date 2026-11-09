@@ -1,0 +1,195 @@
+n036.cluster.pssclabs.com
+Sun Nov  8 06:05:42 UTC 2026
+index, name, memory.total [MiB], memory.used [MiB], utilization.gpu [%]
+0, NVIDIA GeForce RTX 3090, 24576 MiB, 1 MiB, 0 %
+1, NVIDIA GeForce RTX 3090, 24576 MiB, 1 MiB, 0 %
+2, NVIDIA GeForce RTX 3090, 24576 MiB, 1 MiB, 0 %
+3, NVIDIA GeForce RTX 3090, 24576 MiB, 1 MiB, 0 %
+CUDA_VISIBLE_DEVICES checked by torch: 1
+test_generated_tautomers_deduplicate_and_label_positive (test_molecular_preprocessing.MolecularPreprocessingTests.test_generated_tautomers_deduplicate_and_label_positive) ... 
+
+
+ok
+test_invalids_and_version_guard (test_molecular_preprocessing.MolecularPreprocessingTests.test_invalids_and_version_guard) ... ok
+test_manifest_all_spectra_share_identity_and_target (test_molecular_preprocessing.MolecularPreprocessingTests.test_manifest_all_spectra_share_identity_and_target) ... Normalizing 45 unique SMILES (45 uncached) with RDKit 2026.03.3, workers=1
+{
+  "policy": "casmi26-tautomer-inchikey14-v1",
+  "rdkit_version": "2026.03.3",
+  "source": "https://www.kaggle.com/competitions/enveda-CASMI26-molecule-id-mass-spectra/overview",
+  "input_path": "/tmp/tmpvv37t13c/train.parquet",
+  "input_size_bytes": 2801,
+  "input_mtime_ns": 1794117950222007965,
+  "rows_scanned": 46,
+  "unique_input_smiles": 45,
+  "unique_source_identity_smiles_pairs": 46,
+  "valid_identities": 41,
+  "invalid_unique_smiles": 2,
+  "invalid_spectra": 2,
+  "tautomer_status_counts": {
+    "Completed": 44,
+    "not_attempted": 2
+  },
+  "target_fallback_unique_smiles": 0,
+  "source_identities_merged": 2,
+  "identities_with_multiple_source_smiles": 2,
+  "source_identity_mismatches": 44,
+  "source_ids_mapping_to_multiple_identities": 0,
+  "seed": 42,
+  "holdout": 0.2,
+  "val_frac": 0.3,
+  "partitions": {
+    "Ranker holdout": {
+      "identities": 9,
+      "spectra": 10
+    },
+    "Training": {
+      "identities": 22,
+      "spectra": 24
+    },
+    "Validation": {
+      "identities": 10,
+      "spectra": 10
+    }
+  },
+  "target_policy": "Canonical tautomer, remove stereo, canonical SMILES; exact input fallback if capped enumeration changes target identity; minimum verified target per scoring identity",
+  "spectrum_manifest": "source_row is the zero-based row in the original parquet; invalid rows have no partition"
+}
+Normalizing 45 unique SMILES (0 uncached) with RDKit 2026.03.3, workers=1
+{
+  "policy": "casmi26-tautomer-inchikey14-v1",
+  "rdkit_version": "2026.03.3",
+  "source": "https://www.kaggle.com/competitions/enveda-CASMI26-molecule-id-mass-spectra/overview",
+  "input_path": "/tmp/tmpvv37t13c/train.parquet",
+  "input_size_bytes": 2801,
+  "input_mtime_ns": 1794117950222007965,
+  "rows_scanned": 46,
+  "unique_input_smiles": 45,
+  "unique_source_identity_smiles_pairs": 46,
+  "valid_identities": 41,
+  "invalid_unique_smiles": 2,
+  "invalid_spectra": 2,
+  "tautomer_status_counts": {
+    "Completed": 44,
+    "not_attempted": 2
+  },
+  "target_fallback_unique_smiles": 0,
+  "source_identities_merged": 2,
+  "identities_with_multiple_source_smiles": 2,
+  "source_identity_mismatches": 44,
+  "source_ids_mapping_to_multiple_identities": 0,
+  "seed": 42,
+  "holdout": 0.2,
+  "val_frac": 0.3,
+  "partitions": {
+    "Ranker holdout": {
+      "identities": 9,
+      "spectra": 10
+    },
+    "Training": {
+      "identities": 22,
+      "spectra": 24
+    },
+    "Validation": {
+      "identities": 10,
+      "spectra": 10
+    }
+  },
+  "target_policy": "Canonical tautomer, remove stereo, canonical SMILES; exact input fallback if capped enumeration changes target identity; minimum verified target per scoring identity",
+  "spectrum_manifest": "source_row is the zero-based row in the original parquet; invalid rows have no partition"
+}
+ok
+test_matches_scoring_and_equivalent_forms (test_molecular_preprocessing.MolecularPreprocessingTests.test_matches_scoring_and_equivalent_forms) ... ok
+test_training_uses_manifest_and_checkpoints_require_policy (test_molecular_preprocessing.MolecularPreprocessingTests.test_training_uses_manifest_and_checkpoints_require_policy) ... Normalizing 82 unique SMILES (82 uncached) with RDKit 2026.03.3, workers=1
+{
+  "policy": "casmi26-tautomer-inchikey14-v1",
+  "rdkit_version": "2026.03.3",
+  "source": "https://www.kaggle.com/competitions/enveda-CASMI26-molecule-id-mass-spectra/overview",
+  "input_path": "/tmp/tmpg8rl9ppx/train.parquet",
+  "input_size_bytes": 5622,
+  "input_mtime_ns": 1794117950432018047,
+  "rows_scanned": 82,
+  "unique_input_smiles": 82,
+  "unique_source_identity_smiles_pairs": 82,
+  "valid_identities": 80,
+  "invalid_unique_smiles": 1,
+  "invalid_spectra": 1,
+  "tautomer_status_counts": {
+    "Completed": 81,
+    "not_attempted": 1
+  },
+  "target_fallback_unique_smiles": 0,
+  "source_identities_merged": 0,
+  "identities_with_multiple_source_smiles": 1,
+  "source_identity_mismatches": 81,
+  "source_ids_mapping_to_multiple_identities": 1,
+  "seed": 42,
+  "holdout": 0.2,
+  "val_frac": 0.2,
+  "partitions": {
+    "Ranker holdout": {
+      "identities": 15,
+      "spectra": 15
+    },
+    "Training": {
+      "identities": 54,
+      "spectra": 55
+    },
+    "Validation": {
+      "identities": 11,
+      "spectra": 11
+    }
+  },
+  "target_policy": "Canonical tautomer, remove stereo, canonical SMILES; exact input fallback if capped enumeration changes target identity; minimum verified target per scoring identity",
+  "spectrum_manifest": "source_row is the zero-based row in the original parquet; invalid rows have no partition"
+}
+ok
+test_beam_preserves_scores_and_completion (test_pipeline.PipelineTests.test_beam_preserves_scores_and_completion) ... ok
+test_causality_padding_and_metadata_conditioning (test_pipeline.PipelineTests.test_causality_padding_and_metadata_conditioning) ... ok
+test_submission_format_and_missing_coverage (test_pipeline.PipelineTests.test_submission_format_and_missing_coverage) ... ok
+test_unequal_microbatches_match_full_batch_update (test_pipeline.PipelineTests.test_unequal_microbatches_match_full_batch_update) ... ok
+test_unterminated_sequences_are_not_candidates (test_pipeline.PipelineTests.test_unterminated_sequences_are_not_candidates) ... 
+
+
+ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 9.426s
+
+OK
+pooled_gru: 25/150 complete optimizer updates
+pooled_gru: 50/150 complete optimizer updates
+pooled_gru: 75/150 complete optimizer updates
+pooled_gru: 100/150 complete optimizer updates
+pooled_gru: 125/150 complete optimizer updates
+pooled_gru: 150/150 complete optimizer updates
+transformer: 25/150 complete optimizer updates
+transformer: 50/150 complete optimizer updates
+transformer: 75/150 complete optimizer updates
+transformer: 100/150 complete optimizer updates
+transformer: 125/150 complete optimizer updates
+transformer: 150/150 complete optimizer updates
+# Computational benchmark and execution plan
+
+All total times are extrapolations. Queue wait is excluded. A short benchmark does not establish model quality.
+
+| Stage | Priority | Hardware | Measured speed/memory | Estimated total time | Proceed/fallback condition |
+|---|---|---|---|---|---|
+| pooled_gru training | Required | NVIDIA GeForce RTX 3090 | 2877.2 spectra/s; 0.05 GiB allocated; 0.08 GiB at full caps (passed) | 2.43 h estimated | Commit as the reference; retain metrics on the same split |
+| transformer training | Required | NVIDIA GeForce RTX 3090 | 973.0 spectra/s; 0.86 GiB allocated; 1.16 GiB at full caps (passed) | 7.16 h estimated | Commit to this single Transformer if the base plan fits the budget; verify held-out MRR@25 |
+| Beam decoding | Required | NVIDIA GeForce RTX 3090 | 47.82 spectra/s; 0.28 GiB allocated; beam 25 | 0.01 h estimated for 553 validation + 1213 test spectra | Remeasure on validated weights; lower beam width or inference batch if needed |
+| Ranker candidate generation | Optional | NVIDIA GeForce RTX 3090 | 6.86 spectra/s; 100 samples/spectrum | 0.40 GPU h + 0.14 CPU h estimated | Only if candidate recall is useful and held-out ranker MRR@25 improves; remeasure with trained weights |
+| Ranker fitting + refit | Optional | CPU, one thread | 58.8 s synthetic proxy; 1000000 candidate rows | 0.016 CPU h proxy | Replace proxy with real candidate fit; require validation gain |
+| Ensemble | Deferred | NVIDIA GeForce RTX 3090 | Unmeasured | Unestimated; no extra model committed | If estimated additional cost exceeds remaining budget, retain the single Transformer; otherwise require held-out MRR@25 gain |
+
+Training uses 2,242,315 length-filtered spectra × 10 planned epochs. Formula: spectra × epochs / measured spectra/s / 3600, plus measured validation and checkpoint costs, 10% extra loading allowance, and preparation time. Steady-state data loading is already timed.
+
+Training validation overhead measures teacher-forced token loss. The beam row budgets one structure-level evaluation on the prepared validation subset plus final test decoding; additional beam evaluations cost extra.
+
+The baseline is a pooled peak-embedding encoder with a GRU decoder (128 dimensions, two GRU layers by default). Both models use the same train-only tokenizer, partitions, metadata and peak preprocessing. The Transformer uses the exact settings recorded in transformer.json. Full-cap memory is a separate stress test.
+
+CPU ranker timing uses synthetic labels only; it provides no evidence of recall, ranking quality or validation gain. Decoding speed is conditional on beam width, generated lengths and benchmark weights. Remeasure on the first validated checkpoint.
+
+No ranker or ensemble is committed until the budget is specified and held-out quality supports it. **If the estimated additional cost exceeds the remaining budget, retain the single Transformer.**
+
+Total GPU-hour budget is still unspecified; optional stages remain deferred.
+Sun Nov  8 06:07:58 UTC 2026

@@ -1,0 +1,67 @@
+{
+  "host": "n036.cluster.pssclabs.com",
+  "cpu": "x86_64",
+  "torch": "2.7.1+cu118",
+  "cuda": "11.8",
+  "gpu": "NVIDIA GeForce RTX 3090",
+  "gpu_total_gib": 23.55810546875,
+  "device": "cuda",
+  "precision": "bf16",
+  "pbs_job_id": "159855.its-hpc02.its.csulb.edu",
+  "cpu_smoke_only": false,
+  "data_load_seconds": 0.169267893768847,
+  "manifest": {
+    "seed": 42,
+    "source_rows": 2539608,
+    "normalization_policy": "casmi26-tautomer-inchikey14-v1",
+    "rdkit_version": "2026.03.3",
+    "vocab_size": 512,
+    "max_len": 160,
+    "training_spectra": 2242315,
+    "validation_spectra": 49951,
+    "holdout_spectra": 247342,
+    "dropped_long_spectra": {
+      "Training": 0,
+      "Validation": 0,
+      "Ranker holdout": 0
+    },
+    "sample_spectra": {
+      "Training": 4096,
+      "Validation": 553,
+      "Ranker holdout": 555
+    },
+    "training_identity_token_lengths": {
+      "min": 3.0,
+      "p50": 11.0,
+      "p95": 18.0,
+      "p99": 30.0,
+      "max": 106.0
+    },
+    "preparation_seconds": 46.85592745900067,
+    "sampling": "Uniform spectrum reservoir for train; uniform identities then spectrum reservoirs for evaluation",
+    "tokenizer": "Fitted on all normalized training identities only; shared by both architectures"
+  },
+  "sample_token_lengths": {
+    "train": {
+      "min": 3.0,
+      "p50": 12.0,
+      "p95": 24.0,
+      "p99": 39.0,
+      "max": 69.0
+    },
+    "validation": {
+      "min": 4.0,
+      "p50": 12.0,
+      "p95": 21.0,
+      "p99": 29.0,
+      "max": 30.0
+    },
+    "holdout": {
+      "min": 6.0,
+      "p50": 12.0,
+      "p95": 18.0,
+      "p99": 33.0,
+      "max": 39.0
+    }
+  }
+}

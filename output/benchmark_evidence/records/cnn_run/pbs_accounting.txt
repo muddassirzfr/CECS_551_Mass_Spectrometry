@@ -1,0 +1,76 @@
+Job Id: 159856.its-hpc02.its.csulb.edu
+    Job_Name = casmi-cnn
+    Job_Owner = 035365172@its-hpc02.its.csulb.edu
+    resources_used.cput = 00:00:26
+    resources_used.vmem = 12713128kb
+    resources_used.walltime = 00:00:41
+    resources_used.mem = 1496188kb
+    resources_used.energy_used = 0
+    job_state = C
+    queue = batch
+    server = its-hpc02.its.csulb.edu
+    Checkpoint = u
+    ctime = Sat Nov  7 22:45:32 2026
+    Error_Path = its-hpc02.its.csulb.edu:/home/035365172/casmi-cnn-benchmark-2
+	0261107/casmi-cnn.e159856
+    exec_host = n036.cluster.pssclabs.com/16-23
+    exec_gpus = n036.cluster.pssclabs.com-gpu/0
+    group_list = hpc2-coe-users
+    Hold_Types = n
+    Join_Path = oe
+    Keep_Files = n
+    Mail_Points = a
+    mtime = Sat Nov  7 22:46:43 2026
+    Output_Path = its-hpc02.its.csulb.edu:/home/035365172/casmi-cnn-benchmark-
+	20261107/casmi-cnn.o159856
+    Priority = 0
+    qtime = Sat Nov  7 22:45:32 2026
+    Rerunable = True
+    Resource_List.nodes = 1:ppn=8:gpus=1:GPU
+    Resource_List.walltime = 00:30:00
+    Resource_List.nodect = 1
+    session_id = 2119065
+    Variable_List = PBS_O_QUEUE=batch,PBS_O_HOME=/home/035365172,
+	PBS_O_LOGNAME=035365172,
+	PBS_O_PATH=/home/035365172/.local/bin:/home/035365172/bin:/usr/local/
+	bin:/opt/openmpi/5.0.8_intel/bin:/opt/openmpi/5.0.8_intel/include:/usr
+	/local/cuda/bin:/usr/share/Modules/bin:/opt/moab/bin:/opt/mam/bin:/usr
+	/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/opt/gaussian16/gauopen:
+	/opt/gaussian16/g16/bsd:/opt/gaussian16/g16:/opt/pssc/bin,
+	PBS_O_SHELL=/bin/bash,PBS_O_LANG=C.UTF-8,
+	PBS_O_SUBMIT_FILTER=/usr/local/libexec/qsub_filter,
+	PBS_O_WORKDIR=/home/035365172/casmi-cnn-benchmark-20261107,
+	PBS_O_HOST=its-hpc02.its.csulb.edu,
+	PBS_O_SERVER=its-hpc02.its.csulb.edu
+    euser = 035365172
+    egroup = hpc2-coe-users
+    queue_type = E
+    etime = Sat Nov  7 22:45:32 2026
+    exit_status = 0
+    submit_args = hpc_cnn_benchmark.pbs
+    start_time = Sat Nov  7 22:46:02 2026
+    start_count = 1
+    fault_tolerant = False
+    comp_time = Sat Nov  7 22:46:43 2026
+    job_radix = 0
+    total_runtime = 41.670607
+    submit_host = its-hpc02.its.csulb.edu
+    init_work_dir = /home/035365172/casmi-cnn-benchmark-20261107
+    gpu_flags = 3
+    request_version = 1
+    req_information.task_count.0 = 1
+    req_information.lprocs.0 = 8
+    req_information.gpus.0 = 1
+    req_information.thread_usage_policy.0 = allowthreads
+    req_information.hostlist.0 = n036.cluster.pssclabs.com:ppn=8
+    req_information.task_usage.0.task.0.cpu_list = 16-23
+    req_information.task_usage.0.task.0.mem_list = 0
+    req_information.task_usage.0.task.0.cores = 0
+    req_information.task_usage.0.task.0.threads = 8
+    req_information.task_usage.0.task.0.host = n036.cluster.pssclabs.com
+    copy_on_rerun = False
+    gpus_reserved = n036.cluster.pssclabs.com:0
+
+31d71d050a6cbd5fc71b9daf716a8ab2434baeecf7413185eb7a3f3867205562  code/pipeline.py
+32a8ad95cd60cabae0abb8ad817b21073c12f7a591ce19c7d5bba75757051e99  code/benchmark.py
+167cac44700cc9f838ff548083973a7ae3d85c2eecfe9e50fd32038e59ed43bf  hpc_cnn_benchmark.pbs

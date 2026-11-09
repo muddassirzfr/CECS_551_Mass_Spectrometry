@@ -1,0 +1,38 @@
+{
+  "source_sha256": "9423f90ec08b941a9646b535bf0606183e86ff0c5a297978f5a70693d41bcd98",
+  "audit_report_sha256": "453802e2216ca4f272a05f42be45a9518665337b67fd413f6c8c6cde551f351e",
+  "filtering_table_sha256": "0347f3782daeb9d0cd025e7e2d3596b01fc327e46f456c04091cbb5a26fe0513",
+  "script_sha256": "88555a855411dfbe976f25c30bcda4cd64943be91522b38ea3ce3dd3fb6ad410",
+  "matplotlib_version": "3.10.6",
+  "numpy_version": "2.3.5",
+  "selection": {
+    "global_median_positive_fragments": 42.0,
+    "source_spectra": 2539608,
+    "scope": "Training partition; baseline usable; no flagged cross-partition measurement duplicate",
+    "matched_cohort": {
+      "ingest_lib": "enveda-180",
+      "instrument_type": "timsTOF",
+      "adduct": "[M+H]+"
+    },
+    "matched_cohort_spectra": 519255,
+    "cohort_median_recorded_base_peak_intensity": 782888.0,
+    "cohort_first_percentile_recorded_base_peak_intensity": 3406.0,
+    "uncommon_adduct": "[M+Li]+",
+    "uncommon_adduct_spectra": 6,
+    "uncommon_adduct_pct": 0.00023625693414101704,
+    "rules": {
+      "typical": "Nearest global median fragment count in most frequent positive-intensity acquisition cohort; then nearest cohort median recorded base-peak intensity",
+      "low_signal": "Strictly below 1st-percentile recorded base-peak intensity in the same cohort, excluding boundary ties; nearest boundary, then nearest global median fragment count",
+      "uncommon_adduct": "Supplied [M+Li]+ by default (CLI override); nearest global median fragment count among eligible rows",
+      "tie_break": "Lowest zero-based source_row"
+    }
+  },
+  "selected_source_rows": {
+    "typical": 829640,
+    "low_signal": 1036294,
+    "uncommon_adduct": 2301556
+  },
+  "worker_processes": 1,
+  "arrow_threads": 1,
+  "figures_measure": "intensity retention and observed spectra; not identification accuracy"
+}

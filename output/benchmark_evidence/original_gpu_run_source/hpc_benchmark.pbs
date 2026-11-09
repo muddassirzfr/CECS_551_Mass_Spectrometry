@@ -1,0 +1,27 @@
+#!/bin/bash
+# Torque/PBS on CSULB HPC2. One GPU, eight CPU cores, at most 30 minutes.
+#PBS -N casmi-bench
+#PBS -q batch
+#PBS -W group_list=hpc2-coe-users
+#PBS -l nodes=1:ppn=8:gpus=1:GPU
+#PBS -l walltime=00:30:00
+#PBS -j oe
+
+set -euo pipefail
+cd "${PBS_O_WORKDIR:?Submit from the staged benchmark directory}"
+task_dependencies="$(readlink -f "$PWD/dependencies_current")"
+export PYTHONPATH="$task_dependencies${PYTHONPATH:+:$PYTHONPATH}"
+export TOKENIZERS_PARALLELISM=false
+export OMP_NUM_THREADS=4
+export MKL_NUM_THREADS=4
+export OPENBLAS_NUM_THREADS=4
+runtime="${CASMI_PYTHON:-$HOME/vizwiz-venv/bin/python}"
+mkdir -p results
+hostname
+date -u
+nvidia-smi --query-gpu=index,name,memory.total,memory.used,utilization.gpu --format=csv
+"$runtime" -c 'import torch; print("CUDA_VISIBLE_DEVICES checked by torch:", torch.cuda.device_count()); assert torch.cuda.is_available(), "No GPU allocated"'
+"$runtime" -m pip freeze > results/python_packages.txt
+"$runtime" -m unittest discover -s code -p 'test_*.py' -v
+"$runtime" code/benchmark.py run --data data --output results --bf16 --steps 150 --warmup 20
+date -u
